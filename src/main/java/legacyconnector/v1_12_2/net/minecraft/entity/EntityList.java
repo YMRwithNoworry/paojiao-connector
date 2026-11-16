@@ -33,6 +33,10 @@ public class EntityList {
             }
             return entry;
         }
+        if (modEntryVersion == version) {
+            CachedModEntry previous = MOD_ENTRIES_BY_CLASS.putIfAbsent(cls, new CachedModEntry(version, null));
+            if (previous != null && previous.version() == version) return previous.entry();
+        }
         return null;
     }
 
