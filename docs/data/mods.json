@@ -5630,7 +5630,7 @@
   },
   {
    "name": "Common Capabilities",
-   "version": "26.11.16.1",
+   "version": "26.11.16.3",
    "mc": "1.7.10",
    "source": "probe",
    "date": "2026-11-16",
@@ -15574,12 +15574,12 @@
   },
   {
    "name": "ManaMetalMod",
-   "version": "8.0.8",
+   "version": "8.0.9",
    "mc": "1.7.10",
    "source": "probe",
    "date": "2026-11-16",
    "status": "loads",
-   "notes": "Automated check 0.4.13: translates offline and everything it uses exists (6132 classes). But 59 features it uses are empty placeholders, so large parts probably do nothing. The game was not started: this only shows the jar translates, not that it works."
+   "notes": "Automated check 0.4.13: translates offline and everything it uses exists (6213 classes). But 59 features it uses are empty placeholders, so large parts probably do nothing. The game was not started: this only shows the jar translates, not that it works."
   },
   {
    "name": "Mantle",
@@ -18900,7 +18900,7 @@
   },
   {
    "name": "OK Core",
-   "version": "26.11.16.1",
+   "version": "26.11.16.3",
    "mc": "1.7.10",
    "source": "probe",
    "date": "2026-11-16",
@@ -22061,12 +22061,12 @@
   },
   {
    "name": "SaltyMod Expanded",
-   "version": "2.0.0-master.153+de0b400218",
+   "version": "2.0.0-master.160+62f7f4402d",
    "mc": "1.7.10",
    "source": "probe",
    "date": "2026-11-16",
    "status": "loads",
-   "notes": "Automated check 0.4.13: translates offline and everything it uses exists (257 classes). 1 minor feature(s) it uses are empty placeholders. The game was not started: this only shows the jar translates, not that it works."
+   "notes": "Automated check 0.4.13: translates offline and everything it uses exists (285 classes). 3 minor feature(s) it uses are empty placeholders. The game was not started: this only shows the jar translates, not that it works."
   },
   {
    "name": "Salutation",

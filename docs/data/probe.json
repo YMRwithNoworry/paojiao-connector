@@ -81745,7 +81745,7 @@
     ],
     [
      "Common Capabilities",
-     "26.11.16.1",
+     "26.11.16.3",
      "gap_mod",
      "ruiseki.okcore.inventory.PlayerExtendedInventoryIterator.getBaublesStack(I)Llegacyconnector.v1_7_10.net.minecraft.item.ItemStack;"
     ],
@@ -82960,7 +82960,7 @@
     ],
     [
      "ManaMetalMod",
-     "8.0.8",
+     "8.0.9",
      "stubs",
      "59 synthesized stub(s)"
     ],
@@ -83863,9 +83863,9 @@
     ],
     [
      "SaltyMod Expanded",
-     "2.0.0-master.153+de0b400218",
+     "2.0.0-master.160+62f7f4402d",
      "links",
-     "1 synthesized stub(s)"
+     "3 synthesized stub(s)"
     ],
     [
      "Salutation",
@@ -83935,7 +83935,7 @@
     ],
     [
      "ServerUtilities",
-     "2.5.3",
+     "2.5.4",
      "gap_mod",
      "serverutils.integration.navigator.ClaimsLocation.getChunkX()I"
     ],
