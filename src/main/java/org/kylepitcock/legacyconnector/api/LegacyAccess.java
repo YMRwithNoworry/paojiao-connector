@@ -2,6 +2,7 @@ package org.kylepitcock.legacyconnector.api;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
@@ -9,7 +10,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,8 +30,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * called method is its {@linkplain Throwable#getCause() cause}.
  */
 public final class LegacyAccess {
-    private static final Map<String, MethodHandle> HANDLES = new ConcurrentHashMap<>();
-    private static final Map<String, Field> FIELDS = new ConcurrentHashMap<>();
+    private record CallKey(String name, Class<?>[] argumentTypes, boolean isStatic) {
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof CallKey key && isStatic == key.isStatic
+                    && name.equals(key.name) && Arrays.equals(argumentTypes, key.argumentTypes);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (31 * name.hashCode() + Arrays.hashCode(argumentTypes)) + Boolean.hashCode(isStatic);
+        }
+    }
+
+    private static final ClassValue<ConcurrentHashMap<CallKey, MethodHandle>> HANDLES = new ClassValue<>() {
+        @Override
+        protected ConcurrentHashMap<CallKey, MethodHandle> computeValue(Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
+    private static final ClassValue<ConcurrentHashMap<String, Field>> FIELDS = new ClassValue<>() {
+        @Override
+        protected ConcurrentHashMap<String, Field> computeValue(Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     /** Thrown when a legacy member cannot be found or the call fails. */
     public static final class LegacyAccessException extends RuntimeException {
@@ -68,17 +91,21 @@ public final class LegacyAccess {
 
     /** Constructs {@code cls} with the constructor accepting {@code args}. */
     public static Object newInstance(Class<?> cls, Object... args) {
-        String key = cls.getName() + "#<init>" + signature(args);
         try {
-            MethodHandle handle = HANDLES.get(key);
-            if (handle == null) {
+            CallKey key = key("<init>", args, false);
+            MethodHandle handle = HANDLES.get(cls).computeIfAbsent(key, ignored -> {
                 Constructor<?> best = pick(cls.getDeclaredConstructors(), args);
                 if (best == null) throw new LegacyAccessException("No constructor of " + cls.getName() + " accepts " + signature(args));
-                best.setAccessible(true);
-                handle = MethodHandles.lookup().unreflectConstructor(best).asFixedArity();
-                HANDLES.put(key, handle);
-            }
-            return handle.invokeWithArguments(args);
+                try {
+                    best.setAccessible(true);
+                    return MethodHandles.lookup().unreflectConstructor(best).asFixedArity()
+                            .asSpreader(Object[].class, args.length)
+                            .asType(MethodType.methodType(Object.class, Object[].class));
+                } catch (IllegalAccessException e) {
+                    throw new LegacyAccessException("Cannot access constructor of " + cls.getName() + ": " + e, e);
+                }
+            });
+            return handle.invokeExact(args);
         } catch (LegacyAccessException e) {
             throw e;
         } catch (Throwable t) {
@@ -137,40 +164,42 @@ public final class LegacyAccess {
     }
 
     private static Field field(Class<?> cls, String name) {
-        String key = cls.getName() + "#" + name;
-        Field cached = FIELDS.get(key);
-        if (cached != null) return cached;
-        for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-            try {
-                Field f = c.getDeclaredField(name);
-                f.setAccessible(true);
-                FIELDS.put(key, f);
-                return f;
-            } catch (NoSuchFieldException ignored) {
-                // look in the superclass
+        return FIELDS.get(cls).computeIfAbsent(name, ignored -> {
+            for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+                try {
+                    Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f;
+                } catch (NoSuchFieldException missing) {
+                    // look in the superclass
+                }
             }
-        }
-        throw new LegacyAccessException("No field " + name + " in " + cls.getName());
+            throw new LegacyAccessException("No field " + name + " in " + cls.getName());
+        });
     }
 
     private static Object call(Class<?> cls, String name, Object target, Object[] args, boolean isStatic) {
-        String key = cls.getName() + "#" + name + signature(args) + (isStatic ? "S" : "I");
         try {
-            MethodHandle handle = HANDLES.get(key);
-            if (handle == null) {
+            CallKey key = key(name, args, isStatic);
+            MethodHandle handle = HANDLES.get(cls).computeIfAbsent(key, ignored -> {
                 Method best = null;
                 for (Class<?> c = cls; c != null && best == null; c = c.getSuperclass()) best = pick(candidates(c, name, isStatic), args);
                 if (best == null) best = pick(candidates(cls, name, isStatic, true), args);
                 if (best == null) throw new LegacyAccessException("No " + (isStatic ? "static " : "") + "method " + name + signature(args) + " in " + cls.getName());
-                best.setAccessible(true);
-                handle = MethodHandles.lookup().unreflect(best).asFixedArity();
-                HANDLES.put(key, handle);
-            }
-            if (isStatic) return handle.invokeWithArguments(args);
-            Object[] all = new Object[args.length + 1];
-            all[0] = target;
-            System.arraycopy(args, 0, all, 1, args.length);
-            return handle.invokeWithArguments(all);
+                try {
+                    best.setAccessible(true);
+                    MethodHandle resolved = MethodHandles.lookup().unreflect(best).asFixedArity();
+                    return isStatic
+                            ? resolved.asSpreader(Object[].class, args.length)
+                                    .asType(MethodType.methodType(Object.class, Object[].class))
+                            : resolved.asSpreader(Object[].class, args.length).asType(
+                                    MethodType.methodType(Object.class, Object.class, Object[].class));
+                } catch (IllegalAccessException e) {
+                    throw new LegacyAccessException("Cannot access " + name + " in " + cls.getName() + ": " + e, e);
+                }
+            });
+            if (isStatic) return handle.invokeExact(args);
+            return handle.invokeExact(target, args);
         } catch (LegacyAccessException e) {
             throw e;
         } catch (Throwable t) {
@@ -248,5 +277,11 @@ public final class LegacyAccess {
         StringBuilder sb = new StringBuilder("(");
         for (Object a : args) sb.append(a == null ? "null" : a.getClass().getName()).append(',');
         return sb.append(')').toString();
+    }
+
+    private static CallKey key(String name, Object[] args, boolean isStatic) {
+        Class<?>[] argumentTypes = new Class<?>[args.length];
+        for (int i = 0; i < args.length; i++) argumentTypes[i] = args[i] == null ? null : args[i].getClass();
+        return new CallKey(name, argumentTypes, isStatic);
     }
 }
