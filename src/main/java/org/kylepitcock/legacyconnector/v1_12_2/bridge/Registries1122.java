@@ -172,6 +172,8 @@ public final class Registries1122 {
         private Class<V> type;
         private final Map<ResourceLocation, V> byName = new LinkedHashMap<>();
         private final Map<V, ResourceLocation> byValue = new IdentityHashMap<>();
+        /** Immutable snapshot, invalidated whenever the ordered registry values change. */
+        private java.util.List<V> valuesSnapshot;
         private final Consumer<V> onRegister;
         /** Adds the vanilla entries on first read, for registries whose vanilla objects nobody names through a constant. */
         Consumer<Reg<V>> vanilla;
@@ -191,7 +193,7 @@ public final class Registries1122 {
 
         public synchronized void registerVanilla(V value) {
             ResourceLocation name = value.getRegistryName();
-            byName.putIfAbsent(name, value);
+            if (byName.putIfAbsent(name, value) == null) valuesSnapshot = null;
             byValue.putIfAbsent(value, name);
         }
 
@@ -254,7 +256,10 @@ public final class Registries1122 {
         @Override
         public synchronized V remove(ResourceLocation key) {
             V v = byName.remove(key);
-            if (v != null) byValue.remove(v);
+            if (v != null) {
+                byValue.remove(v);
+                valuesSnapshot = null;
+            }
             byId = null;
             return v;
         }
@@ -278,6 +283,7 @@ public final class Registries1122 {
             }
             byName.put(name, value);
             byValue.put(value, name);
+            valuesSnapshot = null;
             onRegister.accept(value);
             mcc$added(value);
             if (value instanceof legacyconnector.v1_12_2.net.minecraftforge.fml.common.registry.EntityEntry entry) entry.mcc$registered();
@@ -346,7 +352,8 @@ public final class Registries1122 {
         @Override
         public synchronized java.util.List<V> getValues() {
             ensureVanilla();
-            return Collections.unmodifiableList(new ArrayList<>(byName.values()));
+            if (valuesSnapshot == null) valuesSnapshot = Collections.unmodifiableList(new ArrayList<>(byName.values()));
+            return valuesSnapshot;
         }
 
         @Override
