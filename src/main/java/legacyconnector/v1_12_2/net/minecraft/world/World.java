@@ -1237,16 +1237,34 @@ public class World implements IBlockAccess {
         return e == null ? null : EntityBridge1122.wrap(e);
     }
 
-    private List<net.minecraft.world.entity.Entity> modernEntities(net.minecraft.world.entity.Entity except, AxisAlignedBB bb) {
-        Level live = mcc$liveLevel();
-        if (live == null || bb == null) return List.of();
-        if (live instanceof ServerLevel sl && !sl.getServer().isSameThread()) return List.of();
-        return live.getEntities(except, bb.mcc$modern(), World::visibleToLegacy);
-    }
-
     /** Item entities whose stack is empty (merged, removed next tick) are not reported: 1.12 never had empty item entities. */
     private static boolean visibleToLegacy(net.minecraft.world.entity.Entity e) {
         return !(e instanceof net.minecraft.world.entity.item.ItemEntity item) || !item.getItem().isEmpty();
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private List collectLegacyEntities(Class type, Entity except, net.minecraft.world.entity.Entity modernExcept, AxisAlignedBB bb,
+            com.google.common.base.Predicate filter) {
+        List<Object> out = new ArrayList<>();
+        Level live = mcc$liveLevel();
+        if (live == null || bb == null) return out;
+        if (live instanceof ServerLevel sl && !sl.getServer().isSameThread()) return out;
+
+        // Keep a snapshot in the result list, but leave Level's own filtered result empty.
+        live.getEntities(modernExcept, bb.mcc$modern(), e -> {
+            if (visibleToLegacy(e)) out.add(e);
+            return false;
+        });
+
+        int write = 0;
+        for (int read = 0; read < out.size(); read++) {
+            Entity legacy = EntityBridge1122.wrap((net.minecraft.world.entity.Entity) out.get(read));
+            if (legacy != null && legacy != except && type.isInstance(legacy) && (filter == null || filter.apply(legacy))) {
+                out.set(write++, legacy);
+            }
+        }
+        while (out.size() > write) out.remove(out.size() - 1);
+        return out;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1256,12 +1274,7 @@ public class World implements IBlockAccess {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     public List getEntitiesWithinAABB(Class type, AxisAlignedBB bb, com.google.common.base.Predicate filter) {
-        List out = new ArrayList<>();
-        for (var e : modernEntities(null, bb)) {
-            Entity legacy = EntityBridge1122.wrap(e);
-            if (legacy != null && type.isInstance(legacy) && (filter == null || filter.apply(legacy))) out.add(legacy);
-        }
-        return out;
+        return collectLegacyEntities(type, null, null, bb, filter);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1271,12 +1284,7 @@ public class World implements IBlockAccess {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     public List getEntitiesInAABBexcluding(Entity except, AxisAlignedBB bb, com.google.common.base.Predicate filter) {
-        List out = new ArrayList<>();
-        for (var e : modernEntities(modernOf(except), bb)) {
-            Entity legacy = EntityBridge1122.wrap(e);
-            if (legacy != null && legacy != except && (filter == null || filter.apply(legacy))) out.add(legacy);
-        }
-        return out;
+        return collectLegacyEntities(Entity.class, except, modernOf(except), bb, filter);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
