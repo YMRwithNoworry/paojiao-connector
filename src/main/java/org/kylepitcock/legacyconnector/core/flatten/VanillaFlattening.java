@@ -38,9 +38,10 @@ public final class VanillaFlattening {
     /** 1.12.2 data version; item stacks in legacy format are upgraded from here. */
     private static final int LEGACY_ITEM_VERSION = 1343;
 
-    private static BlockState[] states;
+    private static volatile BlockState[] states;
     private static Map<BlockState, Integer> reverseStates;
     private static Map<Block, Integer> reverseBlocks;
+    private static Map<Block, int[]> reverseStateKeysByBlock;
     private static Map<String, Integer> blockIds;
     private static String[] blockNames;
     private static Map<BlockState, Integer> nearest;
@@ -53,27 +54,45 @@ public final class VanillaFlattening {
         return SharedConstants.getCurrentVersion().getDataVersion().getVersion();
     }
 
-    private static synchronized void initBlocks() {
+    private static void initBlocks() {
         if (states != null) return;
-        states = new BlockState[4096];
-        reverseStates = new HashMap<>();
-        reverseBlocks = new HashMap<>();
-        for (int key = 0; key < 4096; key++) {
-            BlockState s = upgrade(BlockStateData.getTag(key));
-            states[key] = s;
-            if (s == null) continue;
-            reverseStates.putIfAbsent(s, key);
-            reverseBlocks.putIfAbsent(s.getBlock(), key);
+        synchronized (VanillaFlattening.class) {
+            if (states != null) return;
+            BlockState[] builtStates = new BlockState[4096];
+            Map<BlockState, Integer> builtReverseStates = new HashMap<>();
+            Map<Block, Integer> builtReverseBlocks = new HashMap<>();
+            Map<Block, java.util.ArrayList<Integer>> keysByBlock = new HashMap<>();
+            for (int key = 0; key < builtStates.length; key++) {
+                BlockState s = upgrade(BlockStateData.getTag(key));
+                builtStates[key] = s;
+                if (s == null) continue;
+                if (builtReverseStates.putIfAbsent(s, key) == null) {
+                    builtReverseBlocks.putIfAbsent(s.getBlock(), key);
+                    keysByBlock.computeIfAbsent(s.getBlock(), block -> new java.util.ArrayList<>()).add(key);
+                }
+            }
+            Map<Block, int[]> builtKeysByBlock = new HashMap<>(keysByBlock.size());
+            keysByBlock.forEach((block, keys) -> {
+                int[] candidates = new int[keys.size()];
+                for (int i = 0; i < candidates.length; i++) candidates[i] = keys.get(i);
+                builtKeysByBlock.put(block, candidates);
+            });
+            Map<String, Integer> builtBlockIds = new HashMap<>();
+            String[] builtBlockNames = new String[256];
+            for (Object2IntMap.Entry<String> e : BlockStateData.ID_BY_OLD_NAME.object2IntEntrySet()) {
+                builtBlockIds.put(e.getKey(), e.getIntValue() >> 4);
+                int id = e.getIntValue() >> 4;
+                if (id >= 0 && id < 256 && (builtBlockNames[id] == null || e.getKey().compareTo(builtBlockNames[id]) < 0)) builtBlockNames[id] = e.getKey();
+            }
+            reverseStates = builtReverseStates;
+            reverseBlocks = builtReverseBlocks;
+            reverseStateKeysByBlock = builtKeysByBlock;
+            blockIds = builtBlockIds;
+            blockNames = builtBlockNames;
+            nearest = new java.util.concurrent.ConcurrentHashMap<>();
+            LOG.debug("Built legacy block flattening table: {} states", reverseStates.size());
+            states = builtStates;
         }
-        blockIds = new HashMap<>();
-        blockNames = new String[256];
-        for (Object2IntMap.Entry<String> e : BlockStateData.ID_BY_OLD_NAME.object2IntEntrySet()) {
-            blockIds.put(e.getKey(), e.getIntValue() >> 4);
-            int id = e.getIntValue() >> 4;
-            if (id >= 0 && id < 256 && (blockNames[id] == null || e.getKey().compareTo(blockNames[id]) < 0)) blockNames[id] = e.getKey();
-        }
-        nearest = new java.util.concurrent.ConcurrentHashMap<>();
-        LOG.debug("Built legacy block flattening table: {} states", reverseStates.size());
     }
 
     private static BlockState upgrade(Dynamic<?> flattened) {
@@ -119,14 +138,16 @@ public final class VanillaFlattening {
         if (known != null) return known;
         int best = -1;
         int bestScore = -1;
-        for (int key = 0; key < states.length; key++) {
-            BlockState s = states[key];
-            if (s == null || s.getBlock() != state.getBlock() || reverseStates.get(s) != key) continue;
-            int score = 0;
-            for (var p : state.getProperties()) if (s.getValue(p).equals(state.getValue(p))) score++;
-            if (score > bestScore) {
-                bestScore = score;
-                best = key;
+        int[] candidates = reverseStateKeysByBlock.get(state.getBlock());
+        if (candidates != null) {
+            for (int key : candidates) {
+                BlockState s = states[key];
+                int score = 0;
+                for (var p : state.getProperties()) if (s.getValue(p).equals(state.getValue(p))) score++;
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = key;
+                }
             }
         }
         nearest.put(state, best);
