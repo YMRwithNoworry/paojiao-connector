@@ -410,12 +410,14 @@ public final class LegacyRemapper extends Remapper {
         return super.mapValue(value);
     }
 
-    /** Rewrites string literals used for reflection: class names (dotted or slashed) and SRG ids. */
+    /** Rewrites reflected names and string-valued method selectors such as those in Mixin annotations. */
     public String mapString(String s) {
         if (s.isEmpty() || s.length() > 512) return s;
         if (s.startsWith("field_")) recordReflectedField(s);
         String member = mcp.anyMember(s);
         if (member != s) return member;
+        String selector = mapMixinMethodSelector(s);
+        if (selector != null) return selector;
         // Class.toString() / getName() forms compared against literals: "class X", "interface X", "[LX;".
         for (String prefix : new String[] {"class ", "interface "}) {
             if (s.startsWith(prefix) && s.length() > prefix.length()) return prefix + mapString(s.substring(prefix.length()));
@@ -426,12 +428,8 @@ public final class LegacyRemapper extends Remapper {
             if (dims < s.length() - 2 && s.charAt(dims) == 'L') return s.substring(0, dims + 1) + mapString(s.substring(dims + 1, s.length() - 1)) + ";";
         }
         if (s.charAt(0) == '(' && DESCRIPTOR.matcher(s).matches()) {
-            // a method descriptor used for reflection (CodeChickenLib's ObfMapping finds methods by name and descriptor)
-            java.util.regex.Matcher m = CLASS_IN_DESCRIPTOR.matcher(s);
-            StringBuilder out = new StringBuilder();
-            while (m.find()) m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement("L" + mapStringClass(m.group(1)) + ";"));
-            m.appendTail(out);
-            return out.toString();
+            // A method descriptor can appear directly in reflection strings and inside Mixin selectors.
+            return mapStringDescriptor(s);
         }
         if (!looksLikeClassName(s)) return s;
         boolean dotted = s.indexOf('.') >= 0;
@@ -443,6 +441,34 @@ public final class LegacyRemapper extends Remapper {
             else return s;
         }
         return dotted ? mapped.replace('/', '.') : mapped;
+    }
+
+    private String mapMixinMethodSelector(String selector) {
+        int descriptorStart = selector.indexOf('(');
+        if (descriptorStart <= 0) return null;
+        String owner = null;
+        int methodStart = 0;
+        if (selector.charAt(0) == 'L') {
+            int ownerEnd = selector.indexOf(';');
+            if (ownerEnd < 2 || ownerEnd >= descriptorStart) return null;
+            owner = selector.substring(1, ownerEnd);
+            methodStart = ownerEnd + 1;
+        }
+        String name = selector.substring(methodStart, descriptorStart);
+        String descriptor = selector.substring(descriptorStart);
+        if (name.isEmpty() || !DESCRIPTOR.matcher(descriptor).matches()) return null;
+        String mappedName = owner == null ? mcp.method(name) : mapMethodName(owner, name, descriptor);
+        String mappedDescriptor = mapStringDescriptor(descriptor);
+        if (owner == null) return mappedName + mappedDescriptor;
+        return "L" + mapStringClass(owner) + ";" + mappedName + mappedDescriptor;
+    }
+
+    private String mapStringDescriptor(String descriptor) {
+        java.util.regex.Matcher m = CLASS_IN_DESCRIPTOR.matcher(descriptor);
+        StringBuilder out = new StringBuilder(descriptor.length() + 24);
+        while (m.find()) m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement("L" + mapStringClass(m.group(1)) + ";"));
+        m.appendTail(out);
+        return out.toString();
     }
 
     private static final java.util.regex.Pattern DESCRIPTOR =
