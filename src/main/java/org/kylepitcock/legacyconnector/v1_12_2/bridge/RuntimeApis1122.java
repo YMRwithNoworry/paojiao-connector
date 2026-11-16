@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
@@ -38,6 +39,17 @@ import org.slf4j.LoggerFactory;
 public final class RuntimeApis1122 {
     private static final Logger LOG = LoggerFactory.getLogger("LegacyConnector/1.12.2");
     private static final String SYNTH = "legacyconnector_synth.v1_12_2.";
+    private static final ClassValue<Optional<Method>> HORSE_ARMOR_TYPE_METHODS = new ClassValue<>() {
+        @Override
+        protected Optional<Method> computeValue(Class<?> type) {
+            for (Method method : type.getMethods()) {
+                if (method.getName().equals("getHorseArmorType") && method.getParameterCount() == 1) {
+                    return Optional.of(method);
+                }
+            }
+            return Optional.empty();
+        }
+    };
 
     private RuntimeApis1122() {}
 
@@ -402,15 +414,13 @@ public final class RuntimeApis1122 {
                 else if (modern == net.minecraft.world.item.Items.DIAMOND_HORSE_ARMOR) name = "DIAMOND";
                 else {
                     // Forge: the item says which armor it is (Item.getHorseArmorType, overridden by mod armor)
-                    for (Method m : stack.getItem().getClass().getMethods()) {
-                        if (m.getName().equals("getHorseArmorType") && m.getParameterCount() == 1) {
-                            try {
-                                Object type = m.invoke(stack.getItem(), stack);
-                                if (type != null) return type;
-                            } catch (ReflectiveOperationException | RuntimeException e) {
-                                // treated as no armor
-                            }
-                            break;
+                    Method method = horseArmorTypeMethod(stack.getItem().getClass()).orElse(null);
+                    if (method != null) {
+                        try {
+                            Object type = method.invoke(stack.getItem(), stack);
+                            if (type != null) return type;
+                        } catch (ReflectiveOperationException | RuntimeException e) {
+                            // treated as no armor
                         }
                     }
                 }
@@ -418,6 +428,10 @@ public final class RuntimeApis1122 {
             Object type = enumConstant(horse, name);
             return type != null ? type : Synth.NONE;
         });
+    }
+
+    static Optional<Method> horseArmorTypeMethod(Class<?> itemType) {
+        return HORSE_ARMOR_TYPE_METHODS.get(itemType);
     }
 
     /**

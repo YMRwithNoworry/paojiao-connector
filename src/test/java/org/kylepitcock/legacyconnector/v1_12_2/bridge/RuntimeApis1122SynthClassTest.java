@@ -12,6 +12,14 @@ import org.junit.jupiter.api.Test;
  * EntitySpawnPlacementRegistry.getPlacementForEntity runs per entity type per chunk per tick).
  */
 class RuntimeApis1122SynthClassTest {
+    public static class ItemWithHorseArmorType {
+        public Object getHorseArmorType(Object stack) {
+            return stack;
+        }
+    }
+
+    public static class ItemWithoutHorseArmorType {}
+
     @Test
     void shimClassIsFoundAndCached() {
         Class<?> a = RuntimeApis1122.synthClass("net.minecraft.entity.EntityLiving$SpawnPlacementType");
@@ -28,5 +36,16 @@ class RuntimeApis1122SynthClassTest {
         long ms = (System.nanoTime() - start) / 1_000_000;
         // a real lookup (stack walk plus class loader misses) costs 10 us or more: 100k of them would take over a second
         assertTrue(ms < 500, "100k repeated misses took " + ms + " ms");
+    }
+
+    @Test
+    void horseArmorMethodLookupIsCachedByItemClass() {
+        var first = RuntimeApis1122.horseArmorTypeMethod(ItemWithHorseArmorType.class);
+        var missing = RuntimeApis1122.horseArmorTypeMethod(ItemWithoutHorseArmorType.class);
+
+        assertTrue(first.isPresent());
+        assertSame(first, RuntimeApis1122.horseArmorTypeMethod(ItemWithHorseArmorType.class));
+        assertTrue(missing.isEmpty());
+        assertSame(missing, RuntimeApis1122.horseArmorTypeMethod(ItemWithoutHorseArmorType.class));
     }
 }
