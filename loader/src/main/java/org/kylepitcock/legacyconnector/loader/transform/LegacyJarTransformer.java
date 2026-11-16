@@ -38,7 +38,7 @@ import org.objectweb.asm.tree.ClassNode;
  */
 public final class LegacyJarTransformer {
     /** Bump whenever the output of this class changes, to invalidate caches. */
-    public static final int TRANSFORMER_VERSION = 14;
+    public static final int TRANSFORMER_VERSION = 15;
     /** Names the legacy coremod plugin class of a translated jar. */
     public static final String COREMOD_RESOURCE = "META-INF/legacyconnector-coremod.txt";
 
@@ -286,8 +286,7 @@ public final class LegacyJarTransformer {
     }
 
     /**
-     * Structural view (relocated names, members) of a jar's classes, for linking the jars that extend or call
-     * into it. Cheap: method bodies are skipped.
+     * Structural view of a jar's classes. For 1.12.2, method bodies are read to index direct invocation/field sites for cross-jar Mixin checks.
      */
     public List<ClassInfo> scan(LegacyJar jar) throws IOException {
         Contents c = readPatched(jar);
@@ -300,7 +299,9 @@ public final class LegacyJarTransformer {
             try {
                 ClassNode node = new ClassNode();
                 ClassReader reader = new ClassReader(data);
-                reader.accept(classRemapper(node, remapper), ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                int flags = ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES;
+                if (jar.version != LegacyVersion.V1_12_2) flags |= ClassReader.SKIP_CODE;
+                reader.accept(classRemapper(node, remapper), flags);
                 ClassInfo info = ClassInfo.of(node);
                 String[] ifaces = reader.getInterfaces();
                 info.originalName = reader.getClassName();
@@ -311,6 +312,9 @@ public final class LegacyJarTransformer {
             } catch (RuntimeException ignored) {
                 // reported when the jar itself is translated
             }
+        }
+        if (jar.version == LegacyVersion.V1_12_2) {
+            org.kylepitcock.legacyconnector.loader.transform.compat.SrpApiCompat.addLegacyPeerSignatures(jar, out);
         }
         return out;
     }
@@ -394,6 +398,13 @@ public final class LegacyJarTransformer {
         Map<String, byte[]> other = contents.other;
         Manifest manifest = contents.manifest;
 
+        int srpCotesiaCompat = org.kylepitcock.legacyconnector.loader.transform.compat.SrpcotesiaApiCompat.apply(jar, classes, other, peers, remapper);
+        if (srpCotesiaCompat > 0) result.notes.add("Applied " + srpCotesiaCompat + " SRP API compatibility adjustment(s) for Cotesia");
+        int srpAssetCompat = org.kylepitcock.legacyconnector.loader.transform.compat.SrpApiCompat.repairMalformedAssets(jar, other);
+        if (srpAssetCompat > 0) result.notes.add("Repaired " + srpAssetCompat + " malformed SRP model asset(s)");
+        int srpCompat = org.kylepitcock.legacyconnector.loader.transform.compat.SrpApiCompat.apply(jar, classes, peers);
+        if (srpCompat > 0) result.notes.add("Applied " + srpCompat + " shared SRP API compatibility adjustment(s)");
+
         result.notes.addAll(contents.notes);
         int platformCopies = dropPlatformLibraries(classes, other);
         if (platformCopies > 0) result.notes.add("Dropped " + platformCopies + " bundled Mixin class(es) and launcher service file(s) (NeoForge provides Mixin)");
@@ -458,6 +469,17 @@ public final class LegacyJarTransformer {
         for (ClassNode node : nodes.values()) Am2GravityFix.apply(node);
         for (ClassNode node : nodes.values()) Am2SpellBookFix.apply(node);
         for (ClassNode node : nodes.values()) Am2LecternFix.apply(node);
+        if (version == LegacyVersion.V1_12_2 && jar.hasMods()) {
+            jar.mixinConfigResources.clear();
+            jar.mixinConfigSources.clear();
+            result.notes.addAll(LegacyMixinConfigs.apply(jar, other, nodes, hierarchy));
+            if (jar.coreModClass != null && !jar.mixinConfigSources.isEmpty()) {
+                ClassNode plugin = nodes.get(jar.coreModClass.trim().replace('.', '/'));
+                int redirected = CoreModMixinConfigCalls.apply(plugin, java.util.Set.copyOf(jar.mixinConfigSources));
+                if (redirected > 0) result.notes.add("Redirected " + redirected
+                        + " coremod Mixin config registration call(s) to NeoForge's generated mixin metadata");
+            }
+        }
         int absent = 0;
         for (ClassNode node : nodes.values()) absent += AbsentDependencyStubber.apply(node, hierarchy);
         if (absent > 0) result.notes.add(absent + " method(s) use mods that are not installed; they throw NoClassDefFoundError if called");
@@ -530,10 +552,6 @@ public final class LegacyJarTransformer {
             }
         }
         outResources.putAll(resources.finish());
-        if (version == LegacyVersion.V1_12_2 && jar.hasMods()) {
-            jar.mixinConfigResources.clear();
-            result.notes.addAll(LegacyMixinConfigs.apply(jar, outResources, nodes, hierarchy));
-        }
 
         if (jar.coreModClass != null) {
             // The runtime constructs the coremod's plugin (without applying its transformers), as FML did.

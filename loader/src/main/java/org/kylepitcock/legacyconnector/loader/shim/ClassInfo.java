@@ -17,6 +17,8 @@ public final class ClassInfo {
     public final Map<String, Integer> methods = new HashMap<>();
     /** Keyed by {@code name + ":" + descriptor}. */
     public final Map<String, Integer> fields = new HashMap<>();
+    /** Invocation and field-access site counts keyed by method signature and injector selector. */
+    public final Map<String, Integer> instructionSites = new HashMap<>();
     /**
      * The supertypes as the class's own jar names them before translation ({@code [super, interfaces...]}; notch names in a reobfuscated jar), set for the
      * classes {@code LegacyJarTransformer.scan} returns: another jar's subclass of such a class finds the vanilla members it inherits through them.
@@ -35,8 +37,33 @@ public final class ClassInfo {
     public static ClassInfo of(org.objectweb.asm.tree.ClassNode node) {
         ClassInfo info = new ClassInfo(node.name, node.superName, List.copyOf(node.interfaces), node.access);
         for (var f : node.fields) info.fields.put(f.name + ":" + f.desc, f.access);
-        for (var m : node.methods) info.methods.put(m.name + m.desc, m.access);
+        for (var m : node.methods) {
+            String methodKey = m.name + m.desc;
+            info.methods.put(methodKey, m.access);
+            for (var instruction : m.instructions) {
+                if (instruction instanceof org.objectweb.asm.tree.MethodInsnNode call) {
+                    info.addInstructionSite(methodKey, "INVOKE", call.getOpcode(), "L" + call.owner + ";" + call.name + call.desc);
+                } else if (instruction instanceof org.objectweb.asm.tree.FieldInsnNode field) {
+                    info.addInstructionSite(methodKey, "FIELD", field.getOpcode(), "L" + field.owner + ";" + field.name + ":" + field.desc);
+                }
+            }
+        }
         return info;
+    }
+
+    public void addInstructionSite(String methodKey, String kind, int opcode, String selector) {
+        String key = methodKey + '\0' + kind + '\0' + opcode + '\0' + selector;
+        instructionSites.merge(key, 1, Integer::sum);
+    }
+
+    public int instructionSiteCount(String methodKey, String kind, String selector, int opcode) {
+        String prefix = methodKey + '\0' + kind + '\0';
+        if (opcode >= 0) return instructionSites.getOrDefault(prefix + opcode + '\0' + selector, 0);
+        int count = 0;
+        for (var entry : instructionSites.entrySet()) {
+            if (entry.getKey().startsWith(prefix) && entry.getKey().endsWith('\0' + selector)) count += entry.getValue();
+        }
+        return count;
     }
 
     public boolean hasMethod(String name, String desc) {

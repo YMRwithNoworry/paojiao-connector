@@ -10,6 +10,7 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
 import org.kylepitcock.legacyconnector.core.LegacyMods;
 import org.kylepitcock.legacyconnector.core.pack.GeneratedPack;
+import org.kylepitcock.legacyconnector.v1_12_2.compat.ClientCompat1122;
 import org.kylepitcock.legacyconnector.v1_12_2.bridge.TileEntityBridge1122;
 
 /**
@@ -126,6 +127,7 @@ public final class Client1122 {
         ParticleDraw1122.install();
         ScreenEvents1122.register();
         ClientEvents1122.register();
+        ClientCompat1122.register();
         modBus.addListener(ClientEvents1122::onSoundEngineLoad);
         ClientCommands1122.register();
         // 1.12 told its resource reload listeners again after every resource reload

@@ -49,7 +49,9 @@
     "MinecraftAttackMixin",
     "MultiPlayerGameModeMixin",
     "OptionsScreenLegacySettingsMixin",
-    "ClientLanguageLegacyKeysMixin"
+    "ClientLanguageLegacyKeysMixin",
+    "compat.srparasites.SrpBlizzardLevelRendererMixin",
+    "compat.srparasites.SrpBlizzardSkyMixin"
   ],
   "injectors": {
     "defaultRequire": 1

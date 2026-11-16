@@ -35,6 +35,8 @@ draconicevolution
 avaritia
 extrautilities
 biomesoplenty
+srparasites
+srpcotesia
 natura
 mystcraft
 atum
