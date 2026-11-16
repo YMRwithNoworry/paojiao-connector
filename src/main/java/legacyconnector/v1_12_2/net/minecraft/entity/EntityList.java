@@ -8,6 +8,33 @@ import legacyconnector.v1_12_2.net.minecraftforge.fml.common.registry.ForgeRegis
 public class EntityList {
     /** Spawn egg colours by entity name (filled when an entry gets its egg). */
     public static final java.util.Map<ResourceLocation, EntityEggInfo> ENTITY_EGGS = new java.util.concurrent.ConcurrentHashMap<>();
+    private record CachedModEntry(long version, EntityEntry entry) {}
+
+    private static final java.util.concurrent.ConcurrentMap<Class<?>, CachedModEntry> MOD_ENTRIES_BY_CLASS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile long modEntryVersion;
+
+    /** Entity registry mutations invalidate class lookups cached by the hot entity AI path. */
+    public static void mcc$registryChanged() {
+        modEntryVersion++;
+        MOD_ENTRIES_BY_CLASS.clear();
+    }
+
+    private static EntityEntry modEntry(Class<? extends Entity> cls) {
+        if (cls == null) return null;
+        long version = modEntryVersion;
+        CachedModEntry cached = MOD_ENTRIES_BY_CLASS.get(cls);
+        if (cached != null && cached.version() == version) return cached.entry();
+        for (EntityEntry entry : ForgeRegistries.ENTITIES.getValues()) {
+            ResourceLocation name = entry.getRegistryName();
+            if (entry.getEntityClass() != cls || name == null || "minecraft".equals(name.getNamespace())) continue;
+            if (modEntryVersion == version) {
+                CachedModEntry previous = MOD_ENTRIES_BY_CLASS.putIfAbsent(cls, new CachedModEntry(version, entry));
+                if (previous != null && previous.version() == version) return previous.entry();
+            }
+            return entry;
+        }
+        return null;
+    }
 
     /** A spawn egg's entity and colours. */
     public static class EntityEggInfo {
@@ -32,10 +59,8 @@ public class EntityList {
     }
 
     public static ResourceLocation getKey(Class<? extends Entity> cls) {
-        for (EntityEntry e : ForgeRegistries.ENTITIES.getValues()) {
-            // vanilla entries stand on shared base classes (EntityLiving), which name no entity
-            if (e.getEntityClass() == cls && !"minecraft".equals(e.getRegistryName().getNamespace())) return e.getRegistryName();
-        }
+        EntityEntry entry = modEntry(cls);
+        if (entry != null) return entry.getRegistryName();
         String n = cls.getSimpleName();
         if (n.startsWith("Entity")) n = n.substring("Entity".length());
         return n.isEmpty() ? null : new ResourceLocation("minecraft", n.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT));
@@ -115,9 +140,8 @@ public class EntityList {
      */
     public static Entity newEntity(Class<? extends Entity> clazz, legacyconnector.v1_12_2.net.minecraft.world.World world) {
         if (clazz == null) return null;
-        for (EntityEntry e : ForgeRegistries.ENTITIES.getValues()) {
-            if (e.getEntityClass() == clazz && !"minecraft".equals(e.getRegistryName().getNamespace())) return createEntityByIDFromName(e.getRegistryName(), world);
-        }
+        EntityEntry entry = modEntry(clazz);
+        if (entry != null) return createEntityByIDFromName(entry.getRegistryName(), world);
         try {
             var ctor = clazz.getConstructor(legacyconnector.v1_12_2.net.minecraft.world.World.class);
             return ctor.newInstance(world);
@@ -156,12 +180,8 @@ public class EntityList {
 
     /** The numeric id of the class's registry entry, or -1. */
     public static int getID(Class<? extends Entity> cls) {
-        for (EntityEntry e : ForgeRegistries.ENTITIES.getValues()) {
-            if (e.getEntityClass() == cls && !"minecraft".equals(e.getRegistryName().getNamespace())) {
-                return org.kylepitcock.legacyconnector.v1_12_2.bridge.Registries1122.ENTITIES.getID(e);
-            }
-        }
-        return -1;
+        EntityEntry entry = modEntry(cls);
+        return entry == null ? -1 : org.kylepitcock.legacyconnector.v1_12_2.bridge.Registries1122.ENTITIES.getID(entry);
     }
 
     public static Class<? extends Entity> getClassFromID(int id) {

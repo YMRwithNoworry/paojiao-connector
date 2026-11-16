@@ -193,8 +193,17 @@ public final class Registries1122 {
 
         public synchronized void registerVanilla(V value) {
             ResourceLocation name = value.getRegistryName();
-            if (byName.putIfAbsent(name, value) == null) valuesSnapshot = null;
+            if (byName.putIfAbsent(name, value) == null) {
+                valuesSnapshot = null;
+                entityRegistryChanged(name);
+            }
             byValue.putIfAbsent(value, name);
+        }
+
+        private void entityRegistryChanged(ResourceLocation name) {
+            if ((Object) this == ENTITIES && name != null && !"minecraft".equals(name.getNamespace())) {
+                legacyconnector.v1_12_2.net.minecraft.entity.EntityList.mcc$registryChanged();
+            }
         }
 
         /** Types a registry whose entry class is synthesized: the class is looked up by its legacy name once. */
@@ -259,6 +268,7 @@ public final class Registries1122 {
             if (v != null) {
                 byValue.remove(v);
                 valuesSnapshot = null;
+                entityRegistryChanged(key);
             }
             byId = null;
             return v;
@@ -284,6 +294,7 @@ public final class Registries1122 {
             byName.put(name, value);
             byValue.put(value, name);
             valuesSnapshot = null;
+            entityRegistryChanged(name);
             onRegister.accept(value);
             mcc$added(value);
             if (value instanceof legacyconnector.v1_12_2.net.minecraftforge.fml.common.registry.EntityEntry entry) entry.mcc$registered();
