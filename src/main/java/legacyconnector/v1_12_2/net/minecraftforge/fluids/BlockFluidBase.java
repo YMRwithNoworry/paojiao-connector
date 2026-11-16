@@ -60,6 +60,16 @@ public abstract class BlockFluidBase extends Block implements IFluidBlock {
     protected boolean canDisplace = true;
     protected final String fluidName;
     protected final Fluid definedFluid;
+    private volatile MetaStateCache mcc$metaStateCache;
+
+    private static final class MetaStateCache {
+        final IBlockState base;
+        final java.util.concurrent.atomic.AtomicReferenceArray<IBlockState> states = new java.util.concurrent.atomic.AtomicReferenceArray<>(16);
+
+        MetaStateCache(IBlockState base) {
+            this.base = base;
+        }
+    }
 
     public BlockFluidBase(Fluid fluid, Material material, legacyconnector.v1_12_2.net.minecraft.block.material.MapColor mapColor) {
         super(material, mapColor);
@@ -139,7 +149,24 @@ public abstract class BlockFluidBase extends Block implements IFluidBlock {
 
     @Override
     public IBlockState getStateFromMeta(int meta) {
-        return getDefaultState().withProperty(LEVEL, meta & 15);
+        IBlockState base = getDefaultState();
+        int level = meta & 15;
+        MetaStateCache cache = mcc$metaStateCache;
+        if (cache == null || cache.base != base) {
+            // Mod-provided states can implement withProperty differently and must be asked on every call.
+            if (!legacyconnector.v1_12_2.net.minecraftforge.common.property.ExtendedBlockState.mcc$isSafeToCache(base)) {
+                return base.withProperty(LEVEL, level);
+            }
+            cache = new MetaStateCache(base);
+            mcc$metaStateCache = cache;
+        }
+        IBlockState state = cache.states.get(level);
+        if (state == null) {
+            state = base.withProperty(LEVEL, level);
+            if (!legacyconnector.v1_12_2.net.minecraftforge.common.property.ExtendedBlockState.mcc$isSafeToCache(state)) return state;
+            if (!cache.states.compareAndSet(level, null, state)) state = cache.states.get(level);
+        }
+        return state;
     }
 
     @Override

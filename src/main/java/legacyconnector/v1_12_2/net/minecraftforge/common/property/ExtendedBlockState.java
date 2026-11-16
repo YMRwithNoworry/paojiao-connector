@@ -29,6 +29,11 @@ public class ExtendedBlockState extends BlockStateContainer {
         return new Extended(super.getBaseState(), new LinkedHashMap<>());
     }
 
+    /** True only for this container's own immutable wrappers and standard listed states. */
+    public static boolean mcc$isSafeToCache(IBlockState state) {
+        return state instanceof Extended extended && extended.clean.getClass() == BlockStateContainer.StateImplementation.class;
+    }
+
     private final class Extended implements IExtendedBlockState {
         private final IBlockState clean;
         private final Map<IUnlistedProperty<?>, Object> unlisted;
