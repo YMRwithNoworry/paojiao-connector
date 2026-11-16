@@ -339,9 +339,12 @@ public class Block {
     /** MCP {@code playBlock}: note blocks, pistons. */
     public void onBlockAction(legacyconnector.vb1_7_3.net.minecraft.world.World world, int x, int y, int z, int a, int b) {}
 
-    /** MCP {@code harvestBlock}: the drops are the modern block's ({@code getDroppedItemId/Count/Meta}). */
+    /** Original superclass harvest baseline, including subclasses that delegate their ordinary-tool branch here. */
     public void afterBreak(legacyconnector.vb1_7_3.net.minecraft.world.World world, legacyconnector.vb1_7_3.net.minecraft.entity.player.PlayerEntity player,
-            int x, int y, int z, int meta) {}
+            int x, int y, int z, int meta) {
+        player.increaseStat(legacyconnector.vb1_7_3.net.minecraft.stat.Stats.MINE_BLOCK[id],1);
+        dropStacks(world,x,y,z,meta);
+    }
 
     /** MCP {@code canPlaceBlockAt}. */
     public boolean canPlaceAt(legacyconnector.vb1_7_3.net.minecraft.world.World world, int x, int y, int z) {
@@ -403,6 +406,16 @@ public class Block {
     /** MCP {@code dropBlockAsItemWithChance}. */
     public void dropStacks(legacyconnector.vb1_7_3.net.minecraft.world.World world, int x, int y, int z, int meta, float chance) {
         if (world.isRemote) return;
+        // A vanilla block served to original code carries no drop logic of its own: its drops are the native block's (seeds from grass,
+        // sticks from a dead bush), as Beta's were for the same block.
+        if (mcc$owner == null && mcc$modern != null && world.mcc$level() instanceof net.minecraft.server.level.ServerLevel level) {
+            var pos = new net.minecraft.core.BlockPos(x, y, z);
+            var state = level.getBlockState(pos);
+            if (state.getBlock() == mcc$modern) {
+                net.minecraft.world.level.block.Block.dropResources(state, level, pos);
+                return;
+            }
+        }
         int count = getDroppedItemCount(world.random);
         for (int i = 0; i < count; i++) {
             if (world.random.nextFloat() > chance) continue;

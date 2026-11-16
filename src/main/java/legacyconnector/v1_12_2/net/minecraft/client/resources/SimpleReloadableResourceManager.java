@@ -11,11 +11,13 @@ import legacyconnector.v1_12_2.net.minecraft.util.ResourceLocation;
 
 /**
  * The client's resource manager as 1.12 mods see it. Resources are looked up in the mod files first (legacy paths are case sensitive)
- * and then in the game's loaded packs. Reload listeners are told when they register and again on every resource reload, on the render
- * thread (mods upload textures from them).
+ * and then in the game's loaded packs. Listeners are told when they register outside a reload and at both ends of every resource reload, on the render
+ * thread (mods upload textures from them). A listener registered during a reload first runs after that reload has completed.
  */
 public class SimpleReloadableResourceManager implements IReloadableResourceManager {
     private final List<IResourceManagerReloadListener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final Object reloadLock = new Object();
+    private boolean reloadInProgress;
     /** Per-domain pack stacks mods add their own packs to; lookups ask them first. */
     public final java.util.Map<String, FallbackResourceManager> domainResourceManagers = new java.util.concurrent.ConcurrentHashMap<>();
     public final legacyconnector.v1_12_2.net.minecraft.client.resources.data.MetadataSerializer rmMetadataSerializer;
@@ -47,8 +49,12 @@ public class SimpleReloadableResourceManager implements IReloadableResourceManag
 
     @Override
     public void registerReloadListener(IResourceManagerReloadListener listener) {
-        listeners.add(listener);
-        notify(listener, true);
+        boolean notifyNow;
+        synchronized (reloadLock) {
+            listeners.add(listener);
+            notifyNow = !reloadInProgress;
+        }
+        if (notifyNow) notify(listener, true);
     }
 
     /**
@@ -58,26 +64,31 @@ public class SimpleReloadableResourceManager implements IReloadableResourceManag
      * once the game has reloaded ({@link #mcc$reloaded}).
      */
     public void mcc$reloading() {
-        for (var l : listeners) {
-            synchronized (toldBeforeStitch) {
-                toldBeforeStitch.add(l);
-            }
-            notify(l, false);
+        List<IResourceManagerReloadListener> snapshot;
+        synchronized (reloadLock) {
+            reloadInProgress = true;
+            snapshot = List.copyOf(listeners);
+            toldBeforeStitch.addAll(snapshot);
         }
+        for (var listener : snapshot) notify(listener, false);
     }
 
     /** Called after the game reloaded its resources. */
     public void mcc$reloaded() {
-        synchronized (toldBeforeStitch) {
+        legacyconnector.v1_12_2.net.minecraftforge.fml.client.FMLClientHandler.instance().mcc$refreshResourcePackList();
+        List<IResourceManagerReloadListener> snapshot;
+        synchronized (reloadLock) {
             toldBeforeStitch.clear();
+            reloadInProgress = false;
+            snapshot = List.copyOf(listeners);
         }
-        for (var l : listeners) notify(l, false);
+        for (var listener : snapshot) notify(listener, false);
     }
 
     private void notify(IResourceManagerReloadListener listener, boolean registration) {
         Runnable run = () -> {
             if (registration) {
-                synchronized (toldBeforeStitch) {
+                synchronized (reloadLock) {
                     // the reload already told it, after which the state it rebuilds was filled: this stale call must not clear it
                     if (toldBeforeStitch.contains(listener)) return;
                 }

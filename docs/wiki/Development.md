@@ -9,7 +9,7 @@ Requires JDK 21.
 ./gradlew test                  # self-contained unit tests; no local mod corpus is required
 ./gradlew actualModTest         # opt-in JUnit checks against locally supplied original jars
 ./gradlew bundleJar             # single distributable jar: build/dist/legacyconnector-<ver>.jar, the ONLY jar for a mods folder
-                                # (build/libs/*-runtime-only.jar has no loader: every legacy mod is then rejected as built for an old Minecraft)
+                                # (build/libs/*-internal-do-not-install.jar is a bundle input and has no legacy loader service)
 ./gradlew runClient             # dev client, mods from run/mods
 ./gradlew runServerTest         # headless smoke test with run-servertest/mods; the fixture mod self-tests and stops
 LEVELTYPE=biomesoplenty:biomesop tools/dev/run-subset.sh biomesoplenty   # same, in a mod's world type

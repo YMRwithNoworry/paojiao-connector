@@ -28,7 +28,8 @@ final class LegacyModReportNotesTest {
                 "example.mixins.json");
 
         assertTrue(note.startsWith("WARNING: ships mixins"));
-        assertTrue(note.contains("only mixins targeting translated mod classes are applied"));
+        assertTrue(note.contains("translated legacy classes"));
+        assertTrue(note.contains("supported API shims"));
     }
 
     @Test

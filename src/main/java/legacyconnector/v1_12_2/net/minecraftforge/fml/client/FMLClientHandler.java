@@ -1,5 +1,8 @@
 package legacyconnector.v1_12_2.net.minecraftforge.fml.client;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import legacyconnector.v1_12_2.net.minecraft.client.Minecraft;
 import legacyconnector.v1_12_2.net.minecraft.client.entity.EntityPlayerSP;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiScreen;
@@ -10,6 +13,10 @@ import legacyconnector.v1_12_2.net.minecraft.util.ResourceLocation;
 /** FML's client side: the client, its player and world, screens, and texture error tracking. */
 public class FMLClientHandler {
     private static final FMLClientHandler INSTANCE = new FMLClientHandler();
+    /** Forge's resource packs, read reflectively by libraries such as GeckoLib. */
+    @SuppressWarnings("unused")
+    private final List<legacyconnector.v1_12_2.net.minecraft.client.resources.IResourcePack> resourcePackList = new ArrayList<>();
+    private boolean mcc$resourcePackListInitialized;
 
     /** FML's records of textures that failed to load (private; mods read them by reflection to report broken textures: Blood Magic). They stay empty here. */
     @SuppressWarnings("unused")
@@ -125,6 +132,53 @@ public class FMLClientHandler {
     public void connectToServer(GuiScreen guiMultiplayer, legacyconnector.v1_12_2.net.minecraft.client.multiplayer.ServerData serverEntry) {
         if (serverEntry == null) return;
         org.kylepitcock.legacyconnector.v1_12_2.client.Minecraft1122.connect(guiMultiplayer, serverEntry.serverIP, serverEntry);
+    }
+
+    /** Makes Forge's file-enumeration list available before legacy load-complete listeners register. */
+    public void mcc$ensureResourcePackList() {
+        if (mcc$resourcePackListInitialized) return;
+        mcc$refreshResourcePackList();
+    }
+
+    /** Rebuilds Forge's mod resource-pack list for libraries that enumerate files outside the resource manager API. */
+    public synchronized void mcc$refreshResourcePackList() {
+        List<legacyconnector.v1_12_2.net.minecraft.client.resources.IResourcePack> packs =
+                mcc$resourcePacks(legacyconnector.v1_12_2.net.minecraftforge.fml.common.Loader.instance().getIndexedModList().values());
+        for (var pack : resourcePackList) {
+            if (pack instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger("LegacyConnector/Client")
+                            .warn("Could not close a legacy mod resource pack", e);
+                }
+            }
+        }
+        resourcePackList.clear();
+        resourcePackList.addAll(packs);
+        mcc$resourcePackListInitialized = true;
+        org.slf4j.LoggerFactory.getLogger("LegacyConnector/Client").info("Registered {} Forge-compatible legacy resource pack(s)", packs.size());
+    }
+
+    static List<legacyconnector.v1_12_2.net.minecraft.client.resources.IResourcePack> mcc$resourcePacks(
+            Iterable<legacyconnector.v1_12_2.net.minecraftforge.fml.common.ModContainer> containers) {
+        List<legacyconnector.v1_12_2.net.minecraft.client.resources.IResourcePack> packs = new ArrayList<>();
+        for (var container : containers) {
+            try {
+                File source = container.getSource();
+                if (source == null || !source.exists()) continue;
+                legacyconnector.v1_12_2.net.minecraft.client.resources.IResourcePack pack;
+                if (source.isDirectory()) pack = new FMLFolderResourcePack(container);
+                else if (source.isFile()) pack = new FMLFileResourcePack(container);
+                else continue;
+                pack.getResourceDomains();
+                packs.add(pack);
+            } catch (RuntimeException | LinkageError e) {
+                org.slf4j.LoggerFactory.getLogger("LegacyConnector/Client")
+                        .warn("Could not expose the resource pack for legacy mod {}", container.getModId(), e);
+            }
+        }
+        return packs;
     }
 
     /** The resource pack of a mod's files (its jar or folder), or null for an unknown mod. */

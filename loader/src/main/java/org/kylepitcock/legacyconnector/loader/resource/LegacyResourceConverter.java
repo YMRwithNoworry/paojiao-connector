@@ -42,6 +42,8 @@ public final class LegacyResourceConverter {
             """;
 
     private final Map<String, byte[]> output = new LinkedHashMap<>();
+    /** Original normalized assets, retained so OBJ material libraries resolve independently of ZIP entry order. */
+    private final Map<String, byte[]> sourceAssets = new LinkedHashMap<>();
     private final Map<String, Map<String, String>> langs = new LinkedHashMap<>();
     private boolean sawTextures;
     private static final java.util.regex.Pattern OLD_SOUND = java.util.regex.Pattern.compile("assets/([^/]+)/sound/(.+)\\.ogg");
@@ -59,6 +61,7 @@ public final class LegacyResourceConverter {
         if (!path.startsWith("assets/")) return false;
 
         String modern = normalizePath(path);
+        sourceAssets.putIfAbsent(modern, data);
         if (modern.contains("/textures/")) sawTextures = true;
 
         if (modern.endsWith(".lang")) {
@@ -91,6 +94,8 @@ public final class LegacyResourceConverter {
         }
         if (modern.matches("assets/[^/]+/sounds\\.json")) {
             data = convertSounds(data, modern.substring("assets/".length(), modern.indexOf('/', "assets/".length())));
+        } else if (modern.matches("assets/[^/]+/shaders/program/[^/]+\\.(vsh|fsh)")) {
+            data = LegacyShaderConverter.toCoreProfile(modern, data);
         } else if (modern.endsWith(".mcmeta")) {
             data = sanitizeMcmeta(data);
         } else if (modern.endsWith(".json") && modern.contains("/models/") && !isVanillaShapedModel(data)) {
@@ -166,6 +171,7 @@ public final class LegacyResourceConverter {
             }
             output.put(path, GSON.toJson(root).getBytes(StandardCharsets.UTF_8));
         }
+        ObjMaterialBridge.apply(sourceAssets, output);
         breakOverrideCycles(output);
         ctm.apply(output);
         if (sawTextures) {
@@ -503,6 +509,9 @@ public final class LegacyResourceConverter {
         return out.toString();
     }
 
+    /** Key of a converted model json that keeps a parent name no valid id can hold. */
+    public static final String LEGACY_PARENT = "legacyconnector:legacy_parent";
+
     private static void fixRefs(JsonElement element, String key) {
         if (element instanceof JsonObject obj) {
             // item override predicates name properties ("bodyModel"): modern ids take lower case only (the runtime registers them lower-cased)
@@ -514,16 +523,21 @@ public final class LegacyResourceConverter {
                     obj.add("predicate", fixed);
                 }
             }
+            String legacyParent = null;
             for (var e : obj.entrySet()) {
                 if (e.getValue() instanceof JsonPrimitive p && p.isString() && isRefKey(e.getKey(), key)) {
-                    String fixed = normalizeRef(p.getAsString());
+                    String original = p.getAsString();
+                    String fixed = normalizeRef(original);
+                    if (e.getKey().equals("parent") && !fixed.equals(original.toLowerCase(Locale.ROOT))) legacyParent = original;
                     if ("textures".equals(key)) fixed = vanillaTexture(fixed);
-                    else if (e.getKey().equals("parent")) fixed = vanillaModel(fixed);
+                    else if (e.getKey().equals("parent")
+                            || (e.getKey().equals("model") && fixed.startsWith("minecraft:"))) fixed = vanillaModel(fixed);
                     e.setValue(new JsonPrimitive(fixed));
                 } else {
                     fixRefs(e.getValue(), e.getKey());
                 }
             }
+            if (legacyParent != null) obj.addProperty(LEGACY_PARENT, legacyParent);
         } else if (element instanceof JsonArray arr) {
             for (JsonElement e : arr) fixRefs(e, key);
         }
@@ -537,7 +551,7 @@ public final class LegacyResourceConverter {
     }
 
     /**
-     * Vanilla models renamed after 1.12 (parents of mod models). The texture slots of the new models are the ones of the old (wall, texture, pane,
+     * Vanilla models renamed after 1.12 (parents and direct references in mod models/blockstates). The texture slots of the new models are the ones of the old (wall, texture, pane,
      * edge, top, bottom, torch, cross), so a rename is enough; the vine_* models no longer exist and are generated ({@link #vineModel}).
      */
     private static final Map<String, String> MODEL_RENAMES = Map.ofEntries(
@@ -550,13 +564,16 @@ public final class LegacyResourceConverter {
             Map.entry("block/door_top_rh", "block/door_top_right"),
             Map.entry("block/slime", "block/slime_block"),
             Map.entry("block/grass", "block/grass_block"),
+            Map.entry("grass_snowed", "block/grass_block_snow"),
             Map.entry("block/wall_post", "block/template_wall_post"),
             Map.entry("block/wall_side", "block/template_wall_side"),
+            Map.entry("block/wall_side_tall", "block/template_wall_side_tall"),
             Map.entry("block/fence_gate_closed", "block/template_fence_gate"),
             Map.entry("block/fence_gate_open", "block/template_fence_gate_open"),
             Map.entry("block/wall_gate_closed", "block/template_fence_gate_wall"),
             Map.entry("block/wall_gate_open", "block/template_fence_gate_wall_open"),
             Map.entry("block/pane_post", "block/template_glass_pane_post"),
+            Map.entry("block/glass_pane_post_ends", "block/template_glass_pane_post"),
             Map.entry("block/pane_side", "block/template_glass_pane_side"),
             Map.entry("block/pane_side_alt", "block/template_glass_pane_side_alt"),
             Map.entry("block/pane_noside", "block/template_glass_pane_noside"),

@@ -22,6 +22,8 @@ public final class Client1122 {
     private Client1122() {}
 
     public static void register(IEventBus modBus) {
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterSpriteSourceTypesEvent e) ->
+                e.register(LegacyObjSpriteSource.ID, LegacyObjSpriteSource.TYPE));
         // late: after Assets1122, whose OBJ models collect the material textures registered here
         GeneratedPack.addLateContributor((type, out) -> {
             if (type != PackType.CLIENT_RESOURCES || !present()) return;
@@ -104,13 +106,17 @@ public final class Client1122 {
         }));
         // status icons of mod potions (the modern effect sprites do not exist for them)
         modBus.addListener((net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent e) -> {
-            if (present()) EffectIcons1122.register(e);
+            if (present()) {
+                EffectIcons1122.register(e);
+                onRegisterItemExtensions(e);
+            }
         });
         // plain model locations mods asked ModelLoaderRegistry for are baked as standalone models
         modBus.addListener((net.neoforged.neoforge.client.event.ModelEvent.RegisterAdditional e) -> {
             if (!present()) return;
             for (var location : legacyconnector.v1_12_2.net.minecraftforge.client.model.ModelLoaderRegistry.mcc$requested()) {
-                e.register(net.minecraft.client.resources.model.ModelResourceLocation.standalone(location.mcc$modern()));
+                e.register(net.minecraft.client.resources.model.ModelResourceLocation.standalone(
+                        legacyconnector.v1_12_2.net.minecraftforge.client.model.ModelLoaderRegistry.mcc$standaloneId(location)));
             }
             // models an item registered beside its own (ModelBakery.registerItemVariants: Botania's gun and its clip)
             for (var model : legacyconnector.v1_12_2.net.minecraftforge.client.model.ModelLoader.mcc$allItemVariantModels().values()) {
@@ -206,6 +212,23 @@ public final class Client1122 {
     static boolean present() {
         if (present == null) present = LegacyMods.all().stream().anyMatch(m -> "1.12.2".equals(m.version));
         return present;
+    }
+
+    private static void onRegisterItemExtensions(net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent event) {
+        net.neoforged.neoforge.client.extensions.common.IClientItemExtensions extension = new net.neoforged.neoforge.client.extensions.common.IClientItemExtensions() {
+            private net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer renderer;
+
+            @Override
+            public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                if (renderer == null) renderer = new LegacyItemRenderer1122();
+                return renderer;
+            }
+        };
+        for (var item : org.kylepitcock.legacyconnector.v1_12_2.bridge.ItemBridge1122.modItems()) {
+            var variants = org.kylepitcock.legacyconnector.v1_12_2.bridge.ItemBridge1122.variants(item).values()
+                    .toArray(new net.minecraft.world.item.Item[0]);
+            if (variants.length > 0) event.registerItem(extension, variants);
+        }
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {

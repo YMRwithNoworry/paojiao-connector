@@ -116,8 +116,6 @@ public final class LegacyConfig {
             perf.sweepRemovedPlayers = true
             # Release cached legacy views of closed connections and of inventories whose block was removed or unloaded.
             perf.sweepDeadViews = true
-            # 1.12.2 item stack views without capabilities are held weakly (off: a tag kept without its stack could lose changes).
-            perf.weakStackViews1122 = false
             # The loader drops its translation tables after mod discovery (read by the loader at startup).
             perf.releaseLoaderData = true
             # One loading warning listing translated mods with unresolved references or heavy stub use, shown once per set of mods.
@@ -469,11 +467,6 @@ public final class LegacyConfig {
     /** {@code perf.sweepDeadViews}: views of closed connections and of removed or unloaded inventories are swept. */
     public static boolean perfSweepDeadViews() {
         return bool("perf.sweepDeadViews", true);
-    }
-
-    /** {@code perf.weakStackViews1122} (off): 1.12.2 item stack views without capabilities are held weakly (see Stacks1122). */
-    public static boolean perfWeakStackViews1122() {
-        return bool("perf.weakStackViews1122", false);
     }
 
     /** Legacy particles of the built-in particle classes are not drawn outside the view frustum. */

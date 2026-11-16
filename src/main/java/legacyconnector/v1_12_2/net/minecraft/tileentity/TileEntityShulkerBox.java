@@ -4,6 +4,7 @@ import legacyconnector.v1_12_2.net.minecraft.entity.player.EntityPlayer;
 import legacyconnector.v1_12_2.net.minecraft.entity.player.InventoryPlayer;
 import legacyconnector.v1_12_2.net.minecraft.inventory.Container;
 import legacyconnector.v1_12_2.net.minecraft.inventory.ItemStackHelper;
+import legacyconnector.v1_12_2.net.minecraft.item.EnumDyeColor;
 import legacyconnector.v1_12_2.net.minecraft.item.ItemStack;
 import legacyconnector.v1_12_2.net.minecraft.nbt.NBTTagCompound;
 import legacyconnector.v1_12_2.net.minecraft.util.NonNullList;
@@ -20,15 +21,23 @@ public class TileEntityShulkerBox extends TileEntityLockableLoot implements org.
     private float progress;
     private float progressOld;
     private boolean destroyedByCreativePlayer;
+    private EnumDyeColor color;
     private final net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity mcc$box;
 
     public TileEntityShulkerBox() {
         this.mcc$box = null;
     }
 
+    /** A colored legacy gallery/shulker inventory. */
+    public TileEntityShulkerBox(EnumDyeColor color) {
+        this.mcc$box = null;
+        this.color = color;
+    }
+
     /** A view of a game shulker box. */
     public TileEntityShulkerBox(net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity box) {
         this.mcc$box = box;
+        this.color = box.getColor() == null ? null : EnumDyeColor.byMetadata(box.getColor().getId());
         this.items = new org.kylepitcock.legacyconnector.v1_12_2.bridge.ModernStackList1122(box);
         mcc$refresh();
     }
@@ -36,6 +45,7 @@ public class TileEntityShulkerBox extends TileEntityLockableLoot implements org.
     @Override
     public void mcc$refresh() {
         if (mcc$box == null) return;
+        color = mcc$box.getColor() == null ? null : EnumDyeColor.byMetadata(mcc$box.getColor().getId());
         animationStatus = AnimationStatus.valueOf(mcc$box.getAnimationStatus().name());
         progressOld = progress;
         progress = mcc$box.getProgress(1.0F);
@@ -54,6 +64,10 @@ public class TileEntityShulkerBox extends TileEntityLockableLoot implements org.
     @Override
     public String getName() {
         return hasCustomName() ? customName : "container.shulkerBox";
+    }
+
+    public EnumDyeColor getColor() {
+        return color;
     }
 
     public AnimationStatus getAnimationStatus() {

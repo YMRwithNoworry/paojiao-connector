@@ -496,7 +496,6 @@ public abstract class EntityLiving extends EntityLivingBase {
     public double interpTargetZ;
     public double interpTargetYaw;
     public double interpTargetPitch;
-    public float randomYawVelocity;
     public float movedDistance;
     public float prevMovedDistance;
     @Deprecated

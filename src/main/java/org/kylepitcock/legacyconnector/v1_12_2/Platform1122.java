@@ -508,6 +508,7 @@ public final class Platform1122 implements LegacyPlatform {
 
     @Override
     public void afterPostInit() {
+        org.kylepitcock.legacyconnector.v1_12_2.bridge.LegacyBiomeClimate1122.register();
         Loader.mcc$setState(LoaderState.AVAILABLE);
         org.kylepitcock.legacyconnector.v1_12_2.bridge.ItemBridge1122.completeSubtypes(); // mods' own registries are filled by now
         // multiblocks the mods made in preInit (before their blocks were modern blocks) go to the modern Patchouli now
@@ -549,6 +550,9 @@ public final class Platform1122 implements LegacyPlatform {
 
     @Override
     public void loadComplete(LegacyModRecord mod) throws Exception {
+        if (FMLEnvironment.dist.isClient()) {
+            legacyconnector.v1_12_2.net.minecraftforge.fml.client.FMLClientHandler.instance().mcc$ensureResourcePackList();
+        }
         dispatch(mod, new FMLLoadCompleteEvent());
     }
 }

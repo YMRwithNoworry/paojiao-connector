@@ -4,7 +4,7 @@ package org.kylepitcock.legacyconnector.loader;
  * Human-readable notes for compatibility-report entries.
  *
  * <p>Mixin handling differs by legacy version: Forge 1.20.1 configs are migrated and registered
- * with NeoForge, while older versions have only the narrower translated-mod-class path.</p>
+ * with NeoForge, while 1.12.2 configs support translated mod classes and compatible API shims.</p>
  */
 final class LegacyModReportNotes {
     private LegacyModReportNotes() {}
@@ -17,8 +17,8 @@ final class LegacyModReportNotes {
                     + "and latest.log).";
         }
         if (version == LegacyVersion.V1_12_2) {
-            return "WARNING: ships mixins (" + mixinConfigs + ") targeting legacy Minecraft; only mixins "
-                    + "targeting translated mod classes are applied (see notes).";
+            return "WARNING: ships mixins (" + mixinConfigs + ") targeting legacy Minecraft; compatible mixins targeting translated legacy classes "
+                    + "or supported API shims are applied (see notes).";
         }
         return "WARNING: ships mixins (" + mixinConfigs + ") targeting legacy Minecraft; not applied.";
     }

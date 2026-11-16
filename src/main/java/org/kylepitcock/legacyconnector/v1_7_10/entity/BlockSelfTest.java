@@ -286,8 +286,10 @@ public final class BlockSelfTest {
         String stage = "name";
         try {
             modern.getName(stack);
-            stage = "tooltip";
-            stack.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.of(level), player, net.minecraft.world.item.TooltipFlag.ADVANCED);
+            if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
+                stage = "tooltip";
+                stack.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.of(level), player, net.minecraft.world.item.TooltipFlag.ADVANCED);
+            }
             stage = "use";
             player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack.copy());
             modern.use(level, player, net.minecraft.world.InteractionHand.MAIN_HAND);

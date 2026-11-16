@@ -268,6 +268,16 @@ public final class WorldScreenshotTest {
                 // "shot:<name>" takes a screenshot (after the world around has had time to render), "wait:<ticks>" waits
                 if (c.startsWith("shot:")) add(wait(100), shot(c.substring(5)));
                 else if (c.startsWith("wait:")) add(wait(Integer.parseInt(c.substring(5))));
+                else if (c.startsWith("js:")) add(run(mc -> {
+                    try {
+                        String result = org.kylepitcock.legacyconnector.core.DevScript.eval(c.substring(3), java.util.Map.of("mc", mc,
+                                "server", (Object) java.util.Objects.requireNonNullElse(mc.getSingleplayerServer(), "none"),
+                                "log", LOG));
+                        if (!result.isBlank()) LOG.info("Screenshot script: {}", result.strip());
+                    } catch (Exception e) {
+                        LOG.error("Screenshot script failed", e);
+                    }
+                }));
                 else if (c.equals("use")) add(run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)), wait(40));
                 else if (c.startsWith("key:")) add(run(mc -> mc.keyboardHandler.keyPress(mc.getWindow().getWindow(), Integer.parseInt(c.substring(4)), 0, 1, 0)), wait(10));
                 else if (c.startsWith("cam:")) add(run(mc -> mc.options.setCameraType(camName.equals("front") ? net.minecraft.client.CameraType.THIRD_PERSON_FRONT
@@ -294,6 +304,38 @@ public final class WorldScreenshotTest {
                 for (var tab : net.minecraft.world.item.CreativeModeTabs.allTabs()) for (var stack : tab.getDisplayItems()) listed.add(stack.getItem());
                 for (var e : BuiltInRegistries.ITEM.entrySet()) if (!e.getKey().location().getNamespace().equals("minecraft") && !listed.contains(e.getValue())) missing.merge(e.getKey().location().getNamespace(), 1, Integer::sum);
                 LOG.info("TAB TEST: items in no creative tab: {}", missing);
+                if (System.getProperty("legacyconnector.shotModelDiagnostics") != null) {
+                    try {
+                        var legacyTabs = legacyconnector.v1_12_2.net.minecraft.creativetab.CreativeTabs.mcc$TABS;
+                        var contents = org.kylepitcock.legacyconnector.v1_12_2.bridge.CreativeTabBridge1122.class
+                                .getDeclaredMethod("contents", legacyconnector.v1_12_2.net.minecraft.creativetab.CreativeTabs.class);
+                        contents.setAccessible(true);
+                        for (var legacyTab : legacyTabs) {
+                            String selectedTab = System.getProperty("legacyconnector.shotTabLabel", "");
+                            if (selectedTab.isBlank() || !selectedTab.equals(legacyTab.getTabLabel())) continue;
+                            var modernStacks = (List<net.minecraft.world.item.ItemStack>) contents.invoke(null, legacyTab);
+                            for (int i = 0; i < Math.min(24, modernStacks.size()); i++) {
+                                var stack = modernStacks.get(i);
+                                LOG.info("TAB OUTPUT {} modern={}", i, BuiltInRegistries.ITEM.getKey(stack.getItem()));
+                            }
+                            int sample = 0;
+                            outer: for (var item : org.kylepitcock.legacyconnector.v1_12_2.bridge.ItemBridge1122.modItems()) {
+                                if (!java.util.Arrays.asList(item.getCreativeTabs()).contains(legacyTab)) continue;
+                                var raw = legacyconnector.v1_12_2.net.minecraft.util.NonNullList.<legacyconnector.v1_12_2.net.minecraft.item.ItemStack>create();
+                                item.getSubItems(legacyTab, raw);
+                                for (var legacyStack : raw) {
+                                    var modernStack = org.kylepitcock.legacyconnector.v1_12_2.bridge.Stacks1122.toModern(legacyStack);
+                                    LOG.info("TAB SOURCE {} legacy={}@{} modern={}", sample, legacyStack.getItem().getRegistryName(), legacyStack.getMetadata(),
+                                            BuiltInRegistries.ITEM.getKey(modernStack.getItem()));
+                                    if (++sample == 24) break outer;
+                                }
+                            }
+                            break;
+                        }
+                    } catch (ReflectiveOperationException | RuntimeException e) {
+                        LOG.warn("TAB source diagnostic failed: {}", e.toString());
+                    }
+                }
             }), command("gamemode creative"), wait(10));
             String wanted = System.getProperty("legacyconnector.shotMods", "appliedenergistics2");
             int page = 0;
@@ -312,6 +354,29 @@ public final class WorldScreenshotTest {
                             LOG.info("Creative tab shown: {}", tab.getDisplayName().getString());
                         } catch (ReflectiveOperationException e) {
                             LOG.warn("Cannot select the tab: {}", e.toString());
+                        }
+                        if (System.getProperty("legacyconnector.shotModelDiagnostics") != null) {
+                            int inspected = 0;
+                            for (var stack : tab.getDisplayItems()) {
+                                if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().equals(modWanted)) continue;
+                                try {
+                                    var model = mc.getItemRenderer().getModel(stack, mc.level, mc.player, 0);
+                                    var quads = model.getQuads(null, null, net.minecraft.util.RandomSource.create(0));
+                                    var key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                                    String legacy = "native";
+                                    if (stack.getItem() instanceof org.kylepitcock.legacyconnector.v1_12_2.adapter.Legacy1122Item item) {
+                                        legacy = item.legacy().getRegistryName() + "@" + item.meta();
+                                    } else if (stack.getItem() instanceof org.kylepitcock.legacyconnector.v1_12_2.adapter.Legacy1122BlockItem item) {
+                                        legacy = item.legacy().getRegistryName() + "@0";
+                                    }
+                                    LOG.info("TAB MODEL {} {} legacy={} type={} guiQuads={} particle={}", tab.getDisplayName().getString(),
+                                            key, legacy, model.getClass().getName(), quads.size(), model.getParticleIcon().contents().name());
+                                } catch (RuntimeException | LinkageError e) {
+                                    LOG.warn("TAB MODEL {} {} failed: {}", tab.getDisplayName().getString(),
+                                            BuiltInRegistries.ITEM.getKey(stack.getItem()), e.toString());
+                                }
+                                if (++inspected == 24) break;
+                            }
                         }
                         break;
                     }

@@ -40,10 +40,7 @@ none duplicates FerriteCore or ModernFix (they work on modern block states, mode
 - `perf.sweepDeadViews` (on): the 1.7.10 `NetworkManager` of a connection (holding its packet listener, player and on the client the
   level) is swept two sweeps after its channel closed; the modern container view of a legacy inventory once its block entity is
   removed or unloaded; the 1.12.2 view of a game block entity likewise.
-- `perf.weakStackViews1122` (off): 1.12.2 keeps one live view per modern item stack, and every stack it ever viewed stayed in
-  memory. With the switch on a view is held weakly unless it made capabilities (their providers may hold state that is not in the
-  tag); tag changes still pending are held by the flush list. Off by default: a mod that keeps a tag compound without its stack
-  and changes it later would see the change lost.
+- 1.12.2 stack views live on their modern backing `ItemStack`, not in a global map. The stack/view/backing cycle is collected when neither the modern stack nor a legacy tag or view remains reachable; capability providers stay with the view for that stack's lifetime. A root legacy tag tracks every stack view sharing it, so a mod that retains and later mutates the tag still gets the delayed write-back. Pending flushes use weak identity keys and do not keep otherwise unreachable stacks alive. There is no cache switch. The regression scenario is `tools/dev/server-scripts/scenarios/stack-view-retention.js`; it checks 10,000 temporary stacks, identity, delayed writes, tag-only retention, and release in an isolated server run.
 - `perf.releaseLoaderData` (on): the loader is an FML service whose classes live as long as the game. On a translation run it
   read the legacy hierarchy, method and field tables (about 3 MB of text per version, several times that as maps), MCP name tables
   and the class infos of every library class it linked against; they stayed for the whole session. They are dropped when

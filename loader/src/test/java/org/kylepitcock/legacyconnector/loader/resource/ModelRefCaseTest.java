@@ -20,6 +20,32 @@ class ModelRefCaseTest {
     }
 
     @Test
+    void legacyVanillaModelParentsMapToCurrentTemplates() {
+        JsonObject pane = fix("{\"parent\":\"block/glass_pane_post_ends\"}");
+        JsonObject wall = fix("{\"parent\":\"block/wall_side_tall\"}");
+
+        assertEquals("minecraft:block/template_glass_pane_post", pane.get("parent").getAsString());
+        assertEquals("minecraft:block/template_wall_side_tall", wall.get("parent").getAsString());
+    }
+
+    @Test
+    void legacySnowedGrassModelMapsToCurrentVanillaBlockModel() {
+        JsonObject state = fix("{\"variants\":{\"snowy=true\":{\"model\":\"minecraft:grass_snowed\"}}}");
+
+        assertEquals("minecraft:block/grass_block_snow", state.getAsJsonObject("variants")
+                .getAsJsonObject("snowy=true").get("model").getAsString());
+    }
+
+    @Test
+    void nonResourceLocationLoaderParentIsRetainedForRuntimeLookup() {
+        JsonObject o = fix("{\"parent\":\"mod:item/internal/x$from_item(mod:x)\"}");
+
+        assertEquals("mod:item/internal/x_from_item_mod_x_", o.get("parent").getAsString());
+        assertEquals("mod:item/internal/x$from_item(mod:x)",
+                o.get(LegacyResourceConverter.LEGACY_PARENT).getAsString());
+    }
+
+    @Test
     void boneParentsOfNonMinecraftModelFormatsKeepTheirCase() {
         // HuajiAge's stand models (Bedrock geometry) live under models/ and name a bone as "parent"
         JsonObject o = fix("{\"geometry.model\":{\"bones\":[{\"name\":\"bikeHead\"},{\"name\":\"hb1\",\"parent\":\"bikeHead\"}]}}");

@@ -49,6 +49,7 @@ public final class DimensionsB173 {
 
     public static synchronized void install(){
         if(installed)return;installed=true;
+        DimensionWeatherB173.install();
         var bus=net.neoforged.neoforge.common.NeoForge.EVENT_BUS;
         bus.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post event)->{
             long tick=event.getServer().getTickCount();
@@ -63,6 +64,9 @@ public final class DimensionsB173 {
             }
         });
         bus.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event)->{
+            var leaving=event.getEntity();
+            org.slf4j.LoggerFactory.getLogger("LegacyConnector/B173Dimensions").info("{} saved at ({}, {}, {}) in {}",leaving.getGameProfile().getName(),
+                    Math.round(leaving.getX()*10)/10.0,Math.round(leaving.getY()*10)/10.0,Math.round(leaving.getZ()*10)/10.0,leaving.level().dimension().location());
             PORTALS.remove(event.getEntity().getUUID());HISTORY.remove(event.getEntity().getUUID());
         });
         bus.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent event)->{PORTALS.clear();HISTORY.clear();REPORTED.clear();});
@@ -149,7 +153,11 @@ public final class DimensionsB173 {
                     legacy.writeBack();
                 }
             }
-            legacy.mcc$afterTravel();sync(player);travels++;return true;
+            legacy.mcc$afterTravel();sync(player);travels++;
+            org.slf4j.LoggerFactory.getLogger("LegacyConnector/B173Dimensions").info("Portal travel {} {} -> {}: ({}, {}, {}) in {} to ({}, {}, {}) in {}",
+                    player.getGameProfile().getName(),sourceId,targetId,Math.round(sourceX*10)/10.0,Math.round(sourceY*10)/10.0,Math.round(sourceZ*10)/10.0,
+                    sourceLevel.dimension().location(),Math.round(player.getX()*10)/10.0,Math.round(player.getY()*10)/10.0,Math.round(player.getZ()*10)/10.0,player.level().dimension().location());
+            return true;
         }catch(RuntimeException|LinkageError error){
             // A failed original placement must not strand the actor in the destination with source history.
             // Inventory writes and original world changes remain authoritative; restore only realm and placement.

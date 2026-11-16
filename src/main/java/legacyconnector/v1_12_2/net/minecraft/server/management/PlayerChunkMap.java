@@ -61,6 +61,12 @@ public class PlayerChunkMap {
         return level != null && level.getChunkSource().chunkMap.getVisibleChunkIfPresent(net.minecraft.world.level.ChunkPos.asLong(chunkX, chunkZ)) != null;
     }
 
+    /** A visible holder is not necessarily generated or ready to send; preserve 1.12's sentToPlayers gate. */
+    public boolean isSentToPlayers(int chunkX, int chunkZ) {
+        if (level == null || mcc$watchers(chunkX, chunkZ).isEmpty()) return false;
+        return level.getChunkSource().chunkMap.getChunkToSend(net.minecraft.world.level.ChunkPos.asLong(chunkX, chunkZ)) != null;
+    }
+
     /** The chunk's watcher entry, or null when the chunk is not loaded for players. */
     public PlayerChunkMapEntry getEntry(int x, int z) {
         return contains(x, z) ? new PlayerChunkMapEntry(this, x, z) : null;

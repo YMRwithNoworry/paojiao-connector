@@ -86,6 +86,13 @@ public class ForgeEventFactory {
         if (p != null) EventHooks.onPlayerDestroyItem(p, Stacks1122.toModern(stack), hand == null ? null : hand.mcc$modern());
     }
 
+    /** Posts the cancellable Forge event before a player's drops are spawned; handlers mutate the caller's list directly. */
+    public static void onPlayerDrops(EntityPlayer player, legacyconnector.v1_12_2.net.minecraft.util.DamageSource source,
+            List<legacyconnector.v1_12_2.net.minecraft.entity.item.EntityItem> drops, boolean recentlyHit) {
+        legacyconnector.v1_12_2.net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new legacyconnector.v1_12_2.net.minecraftforge.event.entity.player.PlayerDropsEvent(player, source, drops, recentlyHit));
+    }
+
     /** Whether an entity may break the block (withers, dragons and mods' mobs ask). */
     public static boolean onEntityDestroyBlock(EntityLivingBase entity, BlockPos pos, IBlockState state) {
         if (entity == null || !(entity.mcc$modern() instanceof net.minecraft.world.entity.LivingEntity living)) return true;

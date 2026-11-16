@@ -71,9 +71,23 @@ public final class ItemStack {
 
     /** Binds this stack as a live view of a modern stack (see {@link #mcc$backing}). */
     public void mcc$bind(net.minecraft.world.item.ItemStack backing) {
-        this.mcc$backing = backing;
+        if (mcc$backing != backing) {
+            if (mcc$backing != null && stackTagCompound != null) stackTagCompound.mcc$unbindStackView(this);
+            mcc$backing = backing;
+        }
+        if (stackTagCompound != null) stackTagCompound.mcc$bindStackView(this);
         this.mcc$seenData = backing.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         this.mcc$seenTag = stackTagCompound == null ? null : stackTagCompound.mcc$modern().copy();
+    }
+
+    private void mcc$setStackTagCompound(NBTTagCompound tag) {
+        if (stackTagCompound == tag) return;
+        if (mcc$backing != null && stackTagCompound != null) stackTagCompound.mcc$unbindStackView(this);
+        stackTagCompound = tag;
+        if (mcc$backing != null && stackTagCompound != null) {
+            stackTagCompound.mcc$bindStackView(this);
+            org.kylepitcock.legacyconnector.v1_12_2.bridge.Stacks1122.touched(this);
+        }
     }
 
     /** The tag as last read or written, so an unchanged tag is not written back. */
@@ -90,7 +104,7 @@ public final class ItemStack {
         var data = b.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (data != mcc$seenData) {
             mcc$seenData = data;
-            stackTagCompound = data == null ? null : new NBTTagCompound(data.copyTag());
+            mcc$setStackTagCompound(data == null ? null : new NBTTagCompound(data.copyTag()));
             mcc$seenTag = stackTagCompound == null ? null : stackTagCompound.mcc$modern().copy();
         }
         org.kylepitcock.legacyconnector.v1_12_2.bridge.Stacks1122.touched(this);
@@ -100,6 +114,12 @@ public final class ItemStack {
     public void mcc$commit() {
         var b = mcc$backing;
         if (b == null || b.isEmpty()) return;
+        // A modern owner can replace custom data without passing through the legacy view.
+        // Do not overwrite that newer value with a stale retained tag on a later flush.
+        if (b.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA) != mcc$seenData) {
+            mcc$refreshTag();
+            return;
+        }
         net.minecraft.nbt.CompoundTag now = stackTagCompound == null || stackTagCompound.isEmpty() ? null : stackTagCompound.mcc$modern();
         if (java.util.Objects.equals(now, mcc$seenTag == null || mcc$seenTag.isEmpty() ? null : mcc$seenTag)) return;
         var before = mcc$seenTag;
@@ -225,14 +245,14 @@ public final class ItemStack {
     }
 
     public void setTagCompound(NBTTagCompound tag) {
-        this.stackTagCompound = tag;
+        mcc$setStackTagCompound(tag);
         mcc$changed();
         if (mcc$backing != null) mcc$commit();
     }
 
     public void setTagInfo(String key, legacyconnector.v1_12_2.net.minecraft.nbt.NBTBase value) {
         mcc$refreshTag();
-        if (stackTagCompound == null) stackTagCompound = new NBTTagCompound();
+        if (stackTagCompound == null) mcc$setStackTagCompound(new NBTTagCompound());
         stackTagCompound.setTag(key, value);
         mcc$changed();
         if (mcc$backing != null) mcc$commit();
@@ -276,7 +296,7 @@ public final class ItemStack {
 
     public void setRepairCost(int cost) {
         mcc$refreshTag();
-        if (stackTagCompound == null) stackTagCompound = new NBTTagCompound();
+        if (stackTagCompound == null) mcc$setStackTagCompound(new NBTTagCompound());
         stackTagCompound.setInteger("RepairCost", cost);
         if (mcc$backing != null) mcc$commit();
     }
@@ -379,7 +399,7 @@ public final class ItemStack {
     public void addAttributeModifier(String attributeName, legacyconnector.v1_12_2.net.minecraft.entity.ai.attributes.AttributeModifier modifier,
             legacyconnector.v1_12_2.net.minecraft.inventory.EntityEquipmentSlot equipmentSlot) {
         mcc$refreshTag();
-        if (stackTagCompound == null) stackTagCompound = new NBTTagCompound();
+        if (stackTagCompound == null) mcc$setStackTagCompound(new NBTTagCompound());
         if (!stackTagCompound.hasKey("AttributeModifiers", 9)) stackTagCompound.setTag("AttributeModifiers", new legacyconnector.v1_12_2.net.minecraft.nbt.NBTTagList());
         legacyconnector.v1_12_2.net.minecraft.nbt.NBTTagList list = stackTagCompound.getTagList("AttributeModifiers", 10);
         NBTTagCompound e = new NBTTagCompound();
@@ -480,7 +500,6 @@ public final class ItemStack {
             try {
                 NBTTagCompound tag = getTagCompound();
                 mcc$capabilities = item.initCapabilities(this, tag != null && tag.hasKey("ForgeCaps", 10) ? tag.getCompoundTag("ForgeCaps") : null);
-                if (mcc$capabilities != null) org.kylepitcock.legacyconnector.v1_12_2.bridge.Stacks1122.mcc$pin(this);
             } catch (RuntimeException | LinkageError e) {
                 mcc$capabilities = null;
             }
@@ -500,7 +519,7 @@ public final class ItemStack {
     }
 
     public void addEnchantment(legacyconnector.v1_12_2.net.minecraft.enchantment.Enchantment enchantment, int level) {
-        if (stackTagCompound == null) stackTagCompound = new NBTTagCompound();
+        if (stackTagCompound == null) mcc$setStackTagCompound(new NBTTagCompound());
         if (!stackTagCompound.hasKey("ench", 9)) stackTagCompound.setTag("ench", new legacyconnector.v1_12_2.net.minecraft.nbt.NBTTagList());
         legacyconnector.v1_12_2.net.minecraft.nbt.NBTTagList list = stackTagCompound.getTagList("ench", 10);
         NBTTagCompound e = new NBTTagCompound();
@@ -511,7 +530,7 @@ public final class ItemStack {
 
     public NBTTagCompound getOrCreateSubCompound(String key) {
         mcc$refreshTag();
-        if (stackTagCompound == null) stackTagCompound = new NBTTagCompound();
+        if (stackTagCompound == null) mcc$setStackTagCompound(new NBTTagCompound());
         if (!stackTagCompound.hasKey(key, 10)) stackTagCompound.setTag(key, new NBTTagCompound());
         return stackTagCompound.getCompoundTag(key);
     }
@@ -598,7 +617,7 @@ public final class ItemStack {
         this.item = parsed.item;
         this.stackSize = parsed.stackSize;
         this.itemDamage = parsed.itemDamage;
-        this.stackTagCompound = parsed.stackTagCompound;
+        mcc$setStackTagCompound(parsed.stackTagCompound);
     }
 
     // ------------------------------------------------------------------ more 1.12.2 / Forge stack API

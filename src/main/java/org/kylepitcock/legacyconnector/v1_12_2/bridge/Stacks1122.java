@@ -145,10 +145,9 @@ public final class Stacks1122 {
         if (!tag.isEmpty()) out.setTagCompound(tag);
     }
 
-    /** Live views by the modern stack they stand for (modern stacks compare by identity). */
-    private static final java.util.Map<net.minecraft.world.item.ItemStack, ItemStack> VIEWS = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
-    /** Views whose tag legacy code may have changed since the last flush. */
-    private static final java.util.Set<ItemStack> TOUCHED = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
+    /** Legacy wrappers are held by their modern stack; weak keys avoid the touched set keeping abandoned stacks alive. */
+    private static final java.util.Set<ItemStack> TOUCHED = java.util.Collections.synchronizedSet(
+            java.util.Collections.newSetFromMap(new com.google.common.collect.MapMaker().weakKeys().makeMap()));
 
     /**
      * A live view of a modern stack: the same legacy object for the same modern stack, so a mod that changes the count, damage or tag
@@ -156,40 +155,21 @@ public final class Stacks1122 {
      */
     public static ItemStack view(net.minecraft.world.item.ItemStack stack) {
         if (stack == null || stack.isEmpty()) return ItemStack.EMPTY;
-        ItemStack view = VIEWS.get(stack);
-        if (view == null && WEAK_VIEWS != null) {
-            var ref = WEAK_VIEWS.get(stack);
-            view = ref == null ? null : ref.get();
+        Item legacy = legacyOf(stack.getItem());
+        StackViewAccess1122 access = (StackViewAccess1122) (Object) stack;
+        Object cached = access.legacyconnector$view1122();
+        ItemStack view = cached instanceof ItemStack itemView ? itemView : null;
+        if (view != null && view.getItem() == legacy) return view;
+        synchronized (stack) {
+            cached = access.legacyconnector$view1122();
+            view = cached instanceof ItemStack itemView ? itemView : null;
+            if (view != null && view.getItem() == legacy) return view;
+            view = fromModern(stack);
+            if (view.isEmpty()) return view;
+            view.mcc$bind(stack);
+            access.legacyconnector$setView1122(view);
+            return view;
         }
-        if (view != null && view.getItem() == legacyOf(stack.getItem())) return view;
-        view = fromModern(stack);
-        if (view.isEmpty()) return view;
-        view.mcc$bind(stack);
-        if (WEAK_VIEWS != null) {
-            VIEWS.remove(stack);
-            WEAK_VIEWS.put(stack, new java.lang.ref.WeakReference<>(view));
-        } else {
-            VIEWS.put(stack, view);
-        }
-        return view;
-    }
-
-    /**
-     * {@code perf.weakStackViews1122} (default off): views are held weakly, so a view nobody holds any more is collected with its
-     * modern stack (in {@link #VIEWS} a view keeps its stack, the key, so every stack ever viewed stayed in memory). A view that
-     * made capabilities ({@link #mcc$pin}) is held strongly as before: its providers may keep state that is not in the tag.
-     */
-    private static final java.util.Map<net.minecraft.world.item.ItemStack, java.lang.ref.WeakReference<ItemStack>> WEAK_VIEWS =
-            org.kylepitcock.legacyconnector.core.LegacyConfig.perfWeakStackViews1122()
-                    ? java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>()) : null;
-
-    /** Keeps a view strongly from now on (it made capabilities). */
-    public static void mcc$pin(ItemStack view) {
-        if (WEAK_VIEWS == null) return;
-        var backing = view.mcc$backing();
-        if (backing == null || backing.isEmpty()) return;
-        var ref = WEAK_VIEWS.get(backing);
-        if (ref != null && ref.get() == view) VIEWS.put(backing, view);
     }
 
     /** The legacy item a modern item stands for (null when it has none). */
@@ -215,13 +195,12 @@ public final class Stacks1122 {
         TOUCHED.add(view);
     }
 
-    /** Writes the tags of the views legacy code read since the last flush back into their modern stacks. */
+    /** Writes tags back while their weakly tracked views remain live, including later raw-array mutations. */
     public static void flushViews() {
         if (TOUCHED.isEmpty()) return;
         ItemStack[] views;
         synchronized (TOUCHED) {
             views = TOUCHED.toArray(new ItemStack[0]);
-            TOUCHED.clear();
         }
         for (ItemStack v : views) {
             try {

@@ -1,0 +1,1 @@
+{"required":false,"package":"com.dhanantry.scapeandrunparasites.mixins","compatibilityLevel":"JAVA_8","target":"@env(DEFAULT)","minVersion":"0.8","mixins":[],"client":["MixinEntityRendererBlizzard","MixinRenderGlobalBlizzardSky","accessor.AccessorShaderGroup"],"injectors":{"defaultRequire":0},"overwrites":{"requireAnnotations":true}}

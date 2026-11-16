@@ -19,6 +19,21 @@ class ButtonPlacementTest {
     }
 
     @Test
+    void worldSettingsButtonMovesClearOfWorldNameControls() {
+        List<int[]> controls = List.of(
+                new int[] {54, 0, 120, 22},
+                new int[] {136, 40, 65, 9},
+                new int[] {136, 53, 208, 20},
+                new int[] {136, 81, 208, 20},
+                new int[] {136, 109, 208, 20},
+                new int[] {136, 137, 208, 20});
+        int[] spot = ButtonPlacement.freeSpot(new int[] {24, 36, 150, 20}, controls, 480, 270);
+
+        assertFalse(ButtonPlacement.overlapsAny(spot, controls));
+        assertTrue(spot[1] >= 158);
+    }
+
+    @Test
     void freeButtonsAreNotMoved() {
         assertArrayEquals(new int[] {5, 5, 20, 20}, ButtonPlacement.freeSpot(new int[] {5, 5, 20, 20}, List.of(), 640, 360));
     }

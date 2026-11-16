@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiButton;
+import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiCreateWorld;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiMainMenu;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiScreen;
 import legacyconnector.v1_12_2.net.minecraftforge.client.event.GuiOpenEvent;
@@ -115,6 +116,9 @@ public final class ScreenEvents1122 {
                 buttons.add(m);
             }
         }
+        GuiButton worldOptions = worldOptionsAnchor(view, screen.width, screen.height,
+                legacyconnector.v1_12_2.net.minecraft.client.resources.I18n.format("selectWorld.moreWorldOptions"));
+        if (worldOptions != null) buttons.add(worldOptions);
         post(new GuiScreenEvent.InitGuiEvent.Pre(view, buttons));
         post(new GuiScreenEvent.InitGuiEvent.Post(view, buttons));
         List<int[]> taken = new ArrayList<>();
@@ -122,8 +126,15 @@ public final class ScreenEvents1122 {
             m.syncBack(buttons.contains(m));
             if (buttons.contains(m) && m.visible) taken.add(new int[] {m.x, m.y, m.width, m.height});
         }
+        if (view instanceof GuiCreateWorld) {
+            for (var child : screen.children()) {
+                if (child instanceof AbstractWidget widget && !(child instanceof net.minecraft.client.gui.components.AbstractButton)) {
+                    taken.add(new int[] {widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight()});
+                }
+            }
+        }
         for (GuiButton b : new ArrayList<>(buttons)) {
-            if (b instanceof Mirror) continue;
+            if (b instanceof Mirror || isWorldOptionsAnchor(b)) continue;
             if (b.visible) {
                 // mods placed their buttons for the old layout: one on top of a vanilla button moves to the nearest free spot
                 int[] spot = org.kylepitcock.legacyconnector.client.ButtonPlacement.freeSpot(new int[] {b.x, b.y, b.width, b.height}, taken, screen.width, screen.height);
@@ -132,6 +143,24 @@ public final class ScreenEvents1122 {
                 taken.add(spot);
             }
             e.addListener(new ButtonWidget(view, b));
+        }
+    }
+
+    static GuiButton worldOptionsAnchor(GuiScreen view, int screenWidth, int screenHeight, String label) {
+        if (!(view instanceof GuiCreateWorld)) return null;
+        int width = Math.max(1, Math.min(150, screenWidth));
+        int x = Math.max(0, Math.min(24, screenWidth - width));
+        int y = Math.max(24, Math.min(screenHeight - 20, screenHeight - 86));
+        return new WorldOptionsAnchor(x, y, width, 20, label);
+    }
+
+    static boolean isWorldOptionsAnchor(GuiButton button) {
+        return button instanceof WorldOptionsAnchor;
+    }
+
+    private static final class WorldOptionsAnchor extends GuiButton {
+        WorldOptionsAnchor(int x, int y, int width, int height, String label) {
+            super(Integer.MIN_VALUE, x, y, width, height, label);
         }
     }
 

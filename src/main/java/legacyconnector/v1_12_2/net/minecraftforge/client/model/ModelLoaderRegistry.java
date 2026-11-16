@@ -67,11 +67,16 @@ public class ModelLoaderRegistry {
             model = loader.loadModel(actual);
             if (model == null) throw new LoaderException("Loader " + loader + " returned null for " + location);
         } else {
-            if (!(location instanceof ModelResourceLocation)) REQUESTED.add(location);
-            model = new GameModel(location);
+            model = mcc$vanillaModel(location);
         }
         CACHE.put(location, model);
         return model;
+    }
+
+    /** A game's JSON model without consulting custom loaders; Forge's VanillaLoader is the explicit bypass for them. */
+    public static IModel mcc$vanillaModel(ResourceLocation location) {
+        if (!(location instanceof ModelResourceLocation)) REQUESTED.add(location);
+        return new GameModel(location);
     }
 
     public static IModel getModelOrMissing(ResourceLocation location) {
@@ -151,6 +156,15 @@ public class ModelLoaderRegistry {
         CACHE.clear();
     }
 
+    /** A modern standalone model id; the resource path's leading models/ is supplied by the game's bakery. */
+    public static net.minecraft.resources.ResourceLocation mcc$standaloneId(ResourceLocation location) {
+        String path = location.getPath();
+        if (path.startsWith("models/")) path = path.substring("models/".length());
+        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                org.kylepitcock.legacyconnector.core.Ids.normalizePath(location.getNamespace()),
+                org.kylepitcock.legacyconnector.core.Ids.normalizePath(path));
+    }
+
     /** Plain model locations mods asked for, to be baked by the game as standalone models. */
     public static Set<ResourceLocation> mcc$requested() {
         return Set.copyOf(REQUESTED);
@@ -179,6 +193,40 @@ public class ModelLoaderRegistry {
             java.util.Set<ResourceLocation> out = new java.util.LinkedHashSet<>();
             String path = location.getPath();
             readTextures(location.getNamespace(), path.startsWith("models/") ? path : "models/" + path, out, 0);
+            return com.google.common.collect.ImmutableList.copyOf(out);
+        }
+
+        /**
+         * The models a json model depends on, as Forge's wrapper of a vanilla model listed them: the models of its item overrides, then its
+         * parent (not builtin/ ones). Mods walk these to find every texture an item can show (The Betweenlands registers its generated
+         * corrosion sprites for the textures of the override models).
+         */
+        @Override
+        public java.util.Collection<ResourceLocation> getDependencies() {
+            if (location == null || location instanceof ModelResourceLocation) return com.google.common.collect.ImmutableList.of();
+            String path = location.getPath();
+            if (!path.startsWith("models/")) path = "models/" + path;
+            java.util.Set<ResourceLocation> out = new java.util.LinkedHashSet<>();
+            try {
+                var resource = legacyconnector.v1_12_2.net.minecraft.client.Minecraft.getMinecraft().getResourceManager()
+                        .getResource(new ResourceLocation(location.getNamespace(), path.endsWith(".json") ? path : path + ".json"));
+                try (java.io.Reader reader = new java.io.InputStreamReader(resource.getInputStream(), java.nio.charset.StandardCharsets.UTF_8)) {
+                    var json = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+                    if (json.has("overrides") && json.get("overrides").isJsonArray()) {
+                        for (var o : json.getAsJsonArray("overrides")) {
+                            if (!o.isJsonObject() || !o.getAsJsonObject().has("model") || !o.getAsJsonObject().get("model").isJsonPrimitive()) continue;
+                            ResourceLocation dep = new ResourceLocation(o.getAsJsonObject().get("model").getAsString());
+                            if (!dep.equals(location)) out.add(dep);
+                        }
+                    }
+                    if (json.has("parent") && json.get("parent").isJsonPrimitive()) {
+                        String parent = json.get("parent").getAsString();
+                        if (!parent.startsWith("builtin/") && !parent.startsWith("minecraft:builtin/")) out.add(new ResourceLocation(parent));
+                    }
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                // a missing or unreadable model has no dependencies
+            }
             return com.google.common.collect.ImmutableList.copyOf(out);
         }
 
@@ -229,7 +277,7 @@ public class ModelLoaderRegistry {
                 }
                 return org.kylepitcock.legacyconnector.v1_12_2.client.Models1122.legacyModel(mrl);
             }
-            var key = net.minecraft.client.resources.model.ModelResourceLocation.standalone(location.mcc$modern());
+            var key = net.minecraft.client.resources.model.ModelResourceLocation.standalone(mcc$standaloneId(location));
             var baking = org.kylepitcock.legacyconnector.v1_12_2.client.CustomModels1122.baking();
             var modern = baking != null ? baking.get(key) : null;
             if (modern == null) modern = net.minecraft.client.Minecraft.getInstance().getModelManager().getModel(key);

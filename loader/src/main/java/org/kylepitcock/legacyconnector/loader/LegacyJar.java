@@ -18,6 +18,8 @@ public final class LegacyJar {
     /** Value of the FMLCorePlugin manifest attribute, if the jar ships a coremod. */
     public String coreModClass;
     public boolean coreModContainsMod;
+    /** Legacy Forge's marker for a dependency jar with no {@code @Mod} entrypoint (for example, GeckoLib 3). */
+    public String fmlModType;
     /**
      * Mod ids of mcmod.info for a jar with a coremod plugin and no {@code @Mod} class: FML 1.6.4 registered the plugin's mod container (NEI's
      * {@code NEIModContainer}) as the mod, so other mods depend on that id and a library bridge replaces it by it.

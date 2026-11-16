@@ -1,5 +1,8 @@
 package org.kylepitcock.legacyconnector.v1_12_2.client;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,9 +95,8 @@ public final class Sprites1122 {
         EXTRA.add(id);
     }
 
-    /** Atlas sources for the registered sprites in other folders ({@code single}: the sprite named like its texture file). */
+    /** Atlas sources for registered sprites and OBJ images at their original resource-pack paths. */
     public static void contribute(Map<String, java.util.function.Supplier<byte[]>> out) {
-        if (EXTRA.isEmpty()) return;
         com.google.gson.JsonArray sources = new com.google.gson.JsonArray();
         for (ResourceLocation id : EXTRA) {
             com.google.gson.JsonObject single = new com.google.gson.JsonObject();
@@ -102,9 +104,48 @@ public final class Sprites1122 {
             single.addProperty("resource", id.toString());
             sources.add(single);
         }
+        int objTextures = appendLegacyObjSources(sources);
+        if (sources.isEmpty()) return;
         com.google.gson.JsonObject atlas = new com.google.gson.JsonObject();
         atlas.add("sources", sources);
         byte[] bytes = atlas.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         out.put("assets/minecraft/atlases/blocks.json", () -> bytes);
+        if (objTextures > 0) org.slf4j.LoggerFactory.getLogger("LegacyConnector/OBJ")
+                .info("{} legacy OBJ material image(s) registered from resource-pack paths", objTextures);
+    }
+
+    private static int appendLegacyObjSources(com.google.gson.JsonArray sources) {
+        int added = 0;
+        Set<Path> visitedFiles = new HashSet<>();
+        for (var mod : org.kylepitcock.legacyconnector.core.LegacyMods.all()) {
+            if (!"1.12.2".equals(mod.version) || mod.container == null) continue;
+            try {
+                var owningFile = mod.container.getModInfo().getOwningFile().getFile();
+                Path filePath = owningFile.getFilePath();
+                if (!visitedFiles.add(filePath)) continue;
+                Path manifestPath = owningFile.findResource("META-INF", "legacyconnector", "obj-atlas.json");
+                if (manifestPath == null || !Files.isRegularFile(manifestPath)) continue;
+                com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(Files.readString(manifestPath));
+                if (!root.isJsonObject() || !root.getAsJsonObject().has("textures") || !root.getAsJsonObject().get("textures").isJsonArray()) continue;
+                for (com.google.gson.JsonElement entry : root.getAsJsonObject().getAsJsonArray("textures")) {
+                    if (!entry.isJsonObject()) continue;
+                    var texture = entry.getAsJsonObject();
+                    if (!texture.has("resource") || !texture.has("sprite")) continue;
+                    ResourceLocation resource = ResourceLocation.tryParse(texture.get("resource").getAsString());
+                    ResourceLocation sprite = ResourceLocation.tryParse(texture.get("sprite").getAsString());
+                    if (resource == null || sprite == null) continue;
+                    com.google.gson.JsonObject source = new com.google.gson.JsonObject();
+                    source.addProperty("type", LegacyObjSpriteSource.ID.toString());
+                    source.addProperty("resource", resource.toString());
+                    source.addProperty("sprite", sprite.toString());
+                    sources.add(source);
+                    added++;
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger("LegacyConnector/OBJ")
+                        .warn("Could not read the OBJ atlas manifest for {}: {}", mod, e.toString());
+            }
+        }
+        return added;
     }
 }

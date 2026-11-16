@@ -26,6 +26,8 @@ public final class WorldGenEntitiesSelfTestB173 {
     }
     private static void require(boolean value,String detail){if(!value)throw new IllegalStateException(detail);}
     private static void run(ServerLevel level){
+        // This fixture also runs in servers without Beta mods, where the platform has not initialized numeric vanilla item views.
+        VanillaB173.init();
         var step=ChunkPyramid.GENERATION_PYRAMID.getStepTo(ChunkStatus.FEATURES);
         int radius=step.directDependencies().getRadius(),cx=20_000,cz=20_000;
         var biomes=level.registryAccess().registryOrThrow(Registries.BIOME);
@@ -56,7 +58,14 @@ public final class WorldGenEntitiesSelfTestB173 {
             center.setPersistedStatus(ChunkStatus.CARVERS);
             var item=new legacyconnector.vb1_7_3.net.minecraft.entity.ItemEntity(world,cx*16+.5,80,cz*16+.5,
                     new legacyconnector.vb1_7_3.net.minecraft.item.ItemStack(280,1,0));
-            require(world.spawnEntity(item),"original item API accepts generation spawn");
+            boolean accepted = world.spawnEntity(item);
+            if (!accepted) {
+                var modernStack = org.kylepitcock.legacyconnector.vb1_7_3.StacksB173.toModern(item.stack);
+                throw new IllegalStateException("original item API rejected generation spawn: modernStack=" + modernStack + ", legacyItem="
+                        + item.stack.getItem() + ", legacyItemModern=" + (item.stack.getItem() == null ? null : item.stack.getItem().mcc$modern)
+                        + ", region=" + world.mcc$access().getClass().getName() + ", sameLevel="
+                        + (world.mcc$access() instanceof net.minecraft.server.level.WorldGenRegion candidate && candidate.getLevel() == level));
+            }
             var arrow=new legacyconnector.vb1_7_3.net.minecraft.entity.projectile.ArrowEntity(world);
             arrow.setPosition(cx*16+1.5,80,cz*16+.5);
             require(world.spawnEntity(arrow),"original exact arrow API accepts generation spawn");

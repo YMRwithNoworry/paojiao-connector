@@ -35,6 +35,8 @@ public abstract class EntityLivingBase extends Entity {
             (e, v) -> e.mcc$living().setArrowCount(v));
 
     @Deprecated
+    public float randomYawVelocity;
+    @Deprecated
     public float rotationYawHead;
     private float mcc$local_rotationYawHead;
     @Deprecated

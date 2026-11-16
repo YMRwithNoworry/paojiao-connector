@@ -22,6 +22,18 @@ public class FMLCommonHandler {
         return FMLEnvironment.dist.isClient() ? Side.CLIENT : Side.SERVER;
     }
 
+    /** Runs a queued FML task on the owning game thread. */
+    public static void callFuture(java.util.concurrent.FutureTask<?> task) {
+        if (task == null) return;
+        if (FMLEnvironment.dist.isClient()) {
+            legacyconnector.v1_12_2.net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(task);
+            return;
+        }
+        var server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null || server.isSameThread()) task.run();
+        else server.execute(task);
+    }
+
     public Side getEffectiveSide() {
         Thread t = Thread.currentThread();
         String name = t.getName();

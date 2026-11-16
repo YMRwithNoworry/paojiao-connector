@@ -113,6 +113,11 @@ public class ShapedRecipes extends IForgeRegistryEntry.Impl<IRecipe> implements 
         return list;
     }
 
+    /** The one-slot ingredient form used by Minecraft's 1.12 recipe JSON parser. */
+    public static Ingredient deserializeIngredient(com.google.gson.JsonElement json) {
+        return legacyconnector.v1_12_2.net.minecraftforge.common.crafting.CraftingHelper.getIngredient(json, null);
+    }
+
     /** An item stack from recipe JSON ({@code item}, {@code data}, and {@code count} when useCount). */
     public static ItemStack deserializeItem(com.google.gson.JsonObject json, boolean useCount) {
         String name = legacyconnector.v1_12_2.net.minecraft.util.JsonUtils.getString(json, "item");

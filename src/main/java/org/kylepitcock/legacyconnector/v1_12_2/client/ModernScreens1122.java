@@ -1,6 +1,7 @@
 package org.kylepitcock.legacyconnector.v1_12_2.client;
 
 import legacyconnector.v1_12_2.net.minecraft.client.Minecraft;
+import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiCreateWorld;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiMainMenu;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.GuiScreen;
 import legacyconnector.v1_12_2.net.minecraft.client.gui.inventory.GuiContainer;
@@ -28,6 +29,7 @@ public final class ModernScreens1122 {
 
     static GuiScreen viewOf(Screen screen) {
         try {
+            if (screen instanceof net.minecraft.client.gui.screens.worldselection.CreateWorldScreen ws) return new CreateWorldView(ws);
             if (screen instanceof TitleScreen) return new MainMenuView(screen);
             if (screen instanceof net.minecraft.client.gui.screens.options.controls.ControlsScreen cs) return new ControlsView(cs);
             if (screen instanceof net.minecraft.client.gui.screens.worldselection.SelectWorldScreen ws) return new WorldSelectionView(ws);
@@ -91,6 +93,33 @@ public final class ModernScreens1122 {
             view.inventorySlots = ModernContainer1122.of(s.getMenu());
             view.mcc$setSize(s.getXSize(), s.getYSize());
             view.mcc$setOrigin(s.getGuiLeft(), s.getGuiTop());
+        }
+    }
+
+    /** The modern world creation screen as GuiCreateWorld, the type Forge mods use to attach world options. */
+    public static final class CreateWorldView extends GuiCreateWorld implements ScreenEvents1122.Modern {
+        private final java.lang.ref.WeakReference<Screen> modern;
+
+        CreateWorldView(net.minecraft.client.gui.screens.worldselection.CreateWorldScreen modern) {
+            super(previousScreen(modern));
+            this.modern = new java.lang.ref.WeakReference<>(modern);
+            init(this, modern);
+        }
+
+        private static GuiScreen previousScreen(net.minecraft.client.gui.screens.worldselection.CreateWorldScreen modern) {
+            Object last = Fields1122.get(net.minecraft.client.gui.screens.worldselection.CreateWorldScreen.class, modern, "lastScreen");
+            return last instanceof Screen screen ? ScreenEvents1122.legacyOf(screen) : null;
+        }
+
+        @Override
+        public Screen mcc$modern() {
+            return modern.get();
+        }
+
+        @Override
+        public void mcc$sync() {
+            Screen s = modern.get();
+            if (s != null) setGuiSize(s.width, s.height);
         }
     }
 

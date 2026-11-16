@@ -77,9 +77,10 @@ public final class LegacyJarInspector {
                 LegacyJar forge = inspectForge1201(zip, path);
                 if (forge != null) return forge;
             }
-            // A 1.12.2 library jar built from a 1.15 template keeps a stray mods.toml next to its FML coremod plugin (Obfuscate 0.4.2 for 1.12.2).
+            // Some old Forge libraries retain a Forge 1.15 template mods.toml; recognize their explicit legacy marker in a version folder.
+            boolean legacyLibraryInVersionFolder = libraryVersionFromFolder(path) != null && legacyLibrary(zip);
             boolean strayModsToml = zip.getEntry("META-INF/neoforge.mods.toml") == null && zip.getEntry("fabric.mod.json") == null
-                    && zip.getEntry("META-INF/MANIFEST.MF") != null && legacyCorePlugin(zip);
+                    && zip.getEntry("META-INF/MANIFEST.MF") != null && (legacyCorePlugin(zip) || legacyLibraryInVersionFolder);
             // Anything that already speaks a modern metadata format is not ours to touch.
             if (zip.getEntry("META-INF/neoforge.mods.toml") != null
                     || (zip.getEntry("META-INF/mods.toml") != null && !strayModsToml)
@@ -688,7 +689,37 @@ public final class LegacyJarInspector {
             jar.versionEvidence = "mixed FML references, majority wins";
             return refs17 >= refs112 ? LegacyVersion.V1_7_10 : LegacyVersion.V1_12_2;
         }
+        if (!jar.hasMods() && "LIBRARY".equalsIgnoreCase(jar.fmlModType)) {
+            LegacyVersion folderVersion = libraryVersionFromFolder(jar.path);
+            if (folderVersion != null) {
+                jar.versionEvidence = "FMLModType=LIBRARY in mods/" + folderVersion.id() + " (no version references in the library)";
+                return folderVersion;
+            }
+        }
         return null;
+    }
+
+    private static LegacyVersion libraryVersionFromFolder(Path path) {
+        Path parent = path.getParent();
+        if (parent == null || parent.getFileName() == null) return null;
+        return switch (parent.getFileName().toString()) {
+            case "1.4.7" -> LegacyVersion.V1_4_7;
+            case "1.5.2" -> LegacyVersion.V1_5_2;
+            case "1.6.4" -> LegacyVersion.V1_6_4;
+            case "1.7.10" -> LegacyVersion.V1_7_10;
+            case "1.12.2" -> LegacyVersion.V1_12_2;
+            case "1.20.1" -> LegacyVersion.V1_20_1;
+            case "b1.7.3" -> LegacyVersion.VB1_7_3;
+            default -> null;
+        };
+    }
+
+    private static boolean legacyLibrary(ZipFile zip) throws IOException {
+        ZipEntry entry = zip.getEntry(JarFile.MANIFEST_NAME);
+        if (entry == null) return false;
+        try (InputStream in = zip.getInputStream(entry)) {
+            return "LIBRARY".equalsIgnoreCase(new Manifest(in).getMainAttributes().getValue("FMLModType"));
+        }
     }
 
     private static boolean legacyCorePlugin(ZipFile zip) throws IOException {
@@ -704,6 +735,7 @@ public final class LegacyJarInspector {
             Attributes attrs = new Manifest(in).getMainAttributes();
             jar.coreModClass = attrs.getValue("FMLCorePlugin");
             jar.coreModContainsMod = "true".equalsIgnoreCase(attrs.getValue("FMLCorePluginContainsFMLMod"));
+            jar.fmlModType = attrs.getValue("FMLModType");
             jar.tweakClass = attrs.getValue("TweakClass");
             jar.mixinConfigs = attrs.getValue("MixinConfigs");
             jar.accessTransformer = attrs.getValue("FMLAT");

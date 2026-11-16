@@ -1,12 +1,27 @@
 package legacyconnector.v1_12_2.net.minecraftforge.client.model;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import legacyconnector.v1_12_2.net.minecraft.client.renderer.ItemMeshDefinition;
+import legacyconnector.v1_12_2.net.minecraft.client.renderer.block.model.IBakedModel;
 import legacyconnector.v1_12_2.net.minecraft.client.renderer.block.model.ModelResourceLocation;
+import legacyconnector.v1_12_2.net.minecraft.client.renderer.block.model.Variant;
+import legacyconnector.v1_12_2.net.minecraft.client.renderer.block.model.WeightedBakedModel;
+import legacyconnector.v1_12_2.net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import legacyconnector.v1_12_2.net.minecraft.client.renderer.vertex.VertexFormat;
 import legacyconnector.v1_12_2.net.minecraft.item.Item;
 import legacyconnector.v1_12_2.net.minecraft.item.ItemStack;
 import legacyconnector.v1_12_2.net.minecraft.util.ResourceLocation;
+import legacyconnector.v1_12_2.net.minecraftforge.common.model.IModelState;
 
 /**
  * Item model registration: which model file shows an item (and each of its subtypes). An instance is handed to {@code ModelBakeEvent}
@@ -197,7 +212,7 @@ public class ModelLoader extends legacyconnector.v1_12_2.net.minecraft.client.re
 
         @Override
         public IModel loadModel(ResourceLocation modelLocation) throws Exception {
-            return ModelLoaderRegistry.getModel(modelLocation);
+            return ModelLoaderRegistry.mcc$vanillaModel(modelLocation);
         }
 
         @Override
@@ -237,6 +252,72 @@ public class ModelLoader extends legacyconnector.v1_12_2.net.minecraft.client.re
         @Override
         public java.util.Optional<legacyconnector.v1_12_2.net.minecraft.client.renderer.block.model.ModelBlock> asVanillaModel() {
             return java.util.Optional.ofNullable(model);
+        }
+    }
+
+    /** Forge 1.12's weighted blockstate model; mods reflect its fields and private retexture constructor. */
+    private static final class WeightedRandomModel implements IModel {
+        private final List<Variant> variants;
+        private final List<ResourceLocation> locations;
+        private final Set<ResourceLocation> textures;
+        private final List<IModel> models;
+        private final IModelState defaultState;
+
+        private WeightedRandomModel(List<Variant> variants, List<ResourceLocation> locations, Set<ResourceLocation> textures,
+                List<IModel> models, IModelState defaultState) {
+            this.variants = variants;
+            this.locations = locations;
+            this.textures = textures;
+            this.models = models;
+            this.defaultState = defaultState;
+        }
+
+        @Override
+        public Collection<ResourceLocation> getDependencies() {
+            return ImmutableList.copyOf(locations);
+        }
+
+        @Override
+        public Collection<ResourceLocation> getTextures() {
+            return ImmutableSet.copyOf(textures);
+        }
+
+        @Override
+        public IBakedModel bake(IModelState state, VertexFormat format, Function<ResourceLocation, TextureAtlasSprite> bakedTextureGetter) {
+            if (!Attributes.moreSpecific(format, Attributes.DEFAULT_BAKED_FORMAT)) {
+                throw new IllegalArgumentException("can't bake vanilla weighted models to the format that doesn't fit into the default one: " + format);
+            }
+            if (variants.size() == 1 || variants.isEmpty()) {
+                if (models.isEmpty()) return ModelLoaderRegistry.mcc$missingBaked();
+                IModel model = models.get(0);
+                return model.bake(MultiModelState.getPartState(state, model, 0), format, bakedTextureGetter);
+            }
+            WeightedBakedModel.Builder builder = new WeightedBakedModel.Builder();
+            for (int i = 0; i < variants.size(); i++) {
+                IModel model = models.get(i);
+                builder.add(model.bake(MultiModelState.getPartState(state, model, i), format, bakedTextureGetter), variants.get(i).getWeight());
+            }
+            return builder.build();
+        }
+
+        @Override
+        public IModelState getDefaultState() {
+            return defaultState;
+        }
+
+        @Override
+        public WeightedRandomModel retexture(ImmutableMap<String, String> replacements) {
+            if (replacements.isEmpty()) return this;
+            Set<ResourceLocation> modelTextures = new HashSet<>();
+            ImmutableList.Builder<org.apache.commons.lang3.tuple.Pair<IModel, IModelState>> states = ImmutableList.builder();
+            List<IModel> retexturedModels = new ArrayList<>();
+            for (int i = 0; i < variants.size(); i++) {
+                IModel retextured = models.get(i).retexture(replacements);
+                modelTextures.addAll(retextured.getTextures());
+                retexturedModels.add(retextured);
+                states.add(org.apache.commons.lang3.tuple.Pair.of(retextured, variants.get(i).getState()));
+            }
+            return new WeightedRandomModel(variants, locations, modelTextures, retexturedModels, new MultiModelState(states.build()));
         }
     }
 }

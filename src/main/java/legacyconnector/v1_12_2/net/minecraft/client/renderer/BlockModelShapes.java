@@ -1,5 +1,6 @@
 package legacyconnector.v1_12_2.net.minecraft.client.renderer;
 
+import java.util.function.Supplier;
 import legacyconnector.v1_12_2.net.minecraft.block.Block;
 import legacyconnector.v1_12_2.net.minecraft.block.state.IBlockState;
 import legacyconnector.v1_12_2.net.minecraft.client.renderer.block.model.IBakedModel;
@@ -30,9 +31,14 @@ public class BlockModelShapes {
         }
         var shaper = net.minecraft.client.Minecraft.getInstance().getBlockRenderer().getBlockModelShaper();
         var modern = shaper.getBlockModel(StatesBridge1122.toModern(state));
-        IBakedModel model = Models1122.legacy(modern == null ? shaper.getModelManager().getMissingModel() : modern);
+        IBakedModel model = legacyOrMissing(modern, modelManager::getMissingModel);
         // without a model of its own such a state gets the whole block's model: without its item overrides (see Models1122.withoutOverrides)
         return metaHolds ? model : Models1122.withoutOverrides(model);
+    }
+
+    static IBakedModel legacyOrMissing(net.minecraft.client.resources.model.BakedModel modern, Supplier<IBakedModel> missingModel) {
+        IBakedModel model = Models1122.legacy(modern);
+        return model == null ? missingModel.get() : model;
     }
 
     public ModelManager getModelManager() {

@@ -27,6 +27,7 @@ import org.spongepowered.asm.mixin.transformer.ext.ITargetClassContext;
  */
 public final class LegacyMixinPlugin implements IMixinConfigPlugin {
     private static final String LEGACY_PREFIX = "legacyconnector.legacy.";
+    private static final String LEGACY_API_PREFIX = "legacyconnector/v1_12_2/";
     private static final String PROVENANCE = "META-INF/legacyconnector/provenance.json";
     private static volatile boolean installed;
 
@@ -62,6 +63,10 @@ public final class LegacyMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+
+    static boolean canApplyLegacyMixin(String targetName, boolean legacyOrigin) {
+        return legacyOrigin || targetName.startsWith(LEGACY_API_PREFIX);
+    }
 
     private static synchronized void install() {
         if (installed) return;
@@ -122,7 +127,7 @@ public final class LegacyMixinPlugin implements IMixinConfigPlugin {
                 // mod's mixins (written for 1.12 Minecraft) never apply to anything outside the translated jars.
                 mixins.removeIf(m -> {
                     String config = ((IMixinInfo) m).getConfig().getName();
-                    if (config.startsWith(LEGACY_PREFIX)) return !legacy;
+                    if (config.startsWith(LEGACY_PREFIX)) return !canApplyLegacyMixin(name, legacy);
                     if (legacy && !config.startsWith("legacyconnector")) return !sameJar(name, config);
                     return false;
                 });

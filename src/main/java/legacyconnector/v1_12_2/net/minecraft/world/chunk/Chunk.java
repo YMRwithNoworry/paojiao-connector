@@ -23,6 +23,8 @@ public class Chunk implements legacyconnector.v1_12_2.net.minecraftforge.common.
     private final net.minecraft.world.level.chunk.ChunkAccess access;
     private final ChunkPrimer primer;
     private byte[] blockBiomeArray;
+    private static final java.util.Map<net.minecraft.world.level.chunk.ChunkAccess, BiomeArray> BIOME_ARRAYS =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
     private boolean terrainPopulated;
     private boolean loaded;
     public boolean unloadQueued;
@@ -258,7 +260,18 @@ public class Chunk implements legacyconnector.v1_12_2.net.minecraftforge.common.
     }
 
     public void markDirty() {
-        if (access != null) access.setUnsaved(true);
+        if (access == null) return;
+        if (access instanceof net.minecraft.world.level.chunk.LevelChunk && world != null
+                && world.mcc$level() instanceof net.minecraft.server.level.ServerLevel server
+                && !server.getServer().isSameThread()) {
+            server.getServer().execute(() -> {
+                access.setUnsaved(true);
+                mcc$flushBiomes();
+            });
+            return;
+        }
+        access.setUnsaved(true);
+        mcc$flushBiomes();
     }
 
     public void setModified(boolean modified) {
@@ -324,28 +337,109 @@ public class Chunk implements legacyconnector.v1_12_2.net.minecraftforge.common.
         return true;
     }
 
-    /** 1.12's per-column biome ids (z << 4 | x), from the biomes at the surface. */
+    /** The 1.12 per-column view is shared because each world lookup creates a fresh wrapper around the same modern chunk. */
     public byte[] getBiomeArray() {
-        if (blockBiomeArray != null) return blockBiomeArray;
-        byte[] out = new byte[256];
-        java.util.Arrays.fill(out, (byte) -1);
-        if (access != null) {
-            for (int i = 0; i < 16; i++) {
-                for (int j = 0; j < 16; j++) {
-                    int y = Math.max(access.getMinBuildHeight(), Math.min(access.getMaxBuildHeight() - 1, getHeightValue(i, j)));
-                    var holder = access.getNoiseBiome(((x << 4) + i) >> 2, y >> 2, ((z << 4) + j) >> 2);
-                    var legacy = org.kylepitcock.legacyconnector.v1_12_2.bridge.BiomeBridge1122.legacy(holder);
-                    out[j << 4 | i] = (byte) (legacy == null ? -1 : legacyconnector.v1_12_2.net.minecraft.world.biome.Biome.getIdForBiome(legacy));
-                }
-            }
+        if (access == null) {
+            if (blockBiomeArray == null) blockBiomeArray = new byte[256];
+            return blockBiomeArray;
         }
-        blockBiomeArray = out;
-        return out;
+        blockBiomeArray = mcc$biomeArray().ids;
+        return blockBiomeArray;
     }
 
     public void setBiomeArray(byte[] biomes) {
-        if (biomes != null && biomes.length == 256) blockBiomeArray = biomes;
+        if (biomes == null || biomes.length != 256) return;
+        if (access == null) {
+            blockBiomeArray = biomes;
+            return;
+        }
+        BiomeArray cache = mcc$biomeArray();
+        cache.ids = biomes;
+        blockBiomeArray = biomes;
+        markDirty();
     }
+
+    private BiomeArray mcc$biomeArray() {
+        synchronized (BIOME_ARRAYS) {
+            BiomeArray cache = BIOME_ARRAYS.get(access);
+            if (cache == null) {
+                byte[] ids = currentBiomeIds();
+                cache = new BiomeArray(ids, ids.clone());
+                BIOME_ARRAYS.put(access, cache);
+            }
+            return cache;
+        }
+    }
+
+    private byte[] currentBiomeIds() {
+        byte[] ids = new byte[256];
+        java.util.Arrays.fill(ids, (byte) -1);
+        if (access == null) return ids;
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                int y = Math.max(access.getMinBuildHeight(), Math.min(access.getMaxBuildHeight() - 1,
+                        access.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z)));
+                var legacy = org.kylepitcock.legacyconnector.v1_12_2.bridge.BiomeBridge1122.legacy(
+                        access.getNoiseBiome(((this.x << 4) + x) >> 2, y >> 2, ((this.z << 4) + z) >> 2));
+                int id = legacyconnector.v1_12_2.net.minecraft.world.biome.Biome.getIdForBiome(legacy);
+                ids[z << 4 | x] = (byte) id;
+            }
+        }
+        return ids;
+    }
+
+    private void mcc$flushBiomes() {
+        if (access == null || world == null || world.mcc$level() == null) return;
+        BiomeArray cache = mcc$biomeArray();
+        net.minecraft.world.level.Level level = world.mcc$level();
+        var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.BIOME);
+        @SuppressWarnings("unchecked")
+        net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome>[] cells = new net.minecraft.core.Holder[16];
+        boolean any = false;
+        for (int i = 0; i < 256; i++) {
+            if (cache.ids[i] == cache.read[i]) continue;
+            var legacy = legacyconnector.v1_12_2.net.minecraft.world.biome.Biome.getBiomeForId(cache.ids[i] & 255);
+            if (legacy == null) continue;
+            var id = org.kylepitcock.legacyconnector.v1_12_2.bridge.BiomeBridge1122.modernId(legacy);
+            var holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, id));
+            if (holder.isEmpty()) continue;
+            int x = i & 15, z = i >> 4;
+            cells[(z >> 2) << 2 | (x >> 2)] = holder.get();
+            any = true;
+        }
+        if (!any) return;
+
+        int baseX = net.minecraft.core.QuartPos.fromBlock(access.getPos().getMinBlockX());
+        int baseZ = net.minecraft.core.QuartPos.fromBlock(access.getPos().getMinBlockZ());
+        net.minecraft.world.level.biome.Climate.Sampler sampler = level instanceof net.minecraft.server.level.ServerLevel server
+                ? server.getChunkSource().randomState().sampler() : null;
+        access.fillBiomesFromNoise((qx, qy, qz, ignored) -> {
+            var changed = cells[((qz - baseZ) & 3) << 2 | ((qx - baseX) & 3)];
+            return changed != null ? changed : access.getNoiseBiome(qx, qy, qz);
+        }, sampler);
+        for (int i = 0; i < 256; i++) {
+            if (cells[((i >> 4) >> 2) << 2 | ((i & 15) >> 2)] != null) cache.read[i] = cache.ids[i];
+        }
+        blockBiomeArray = cache.ids;
+        access.setUnsaved(true);
+        if (access instanceof net.minecraft.world.level.chunk.LevelChunk chunk
+                && level instanceof net.minecraft.server.level.ServerLevel server) {
+            Runnable resend = () -> server.getChunkSource().chunkMap.resendBiomesForChunks(java.util.List.of(chunk));
+            if (server.getServer().isSameThread()) resend.run();
+            else server.getServer().execute(resend);
+        }
+    }
+
+    private static final class BiomeArray {
+        private byte[] ids;
+        private byte[] read;
+
+        private BiomeArray(byte[] ids, byte[] read) {
+            this.ids = ids;
+            this.read = read;
+        }
+    }
+
 
     public boolean isLoaded() {
         return loaded;

@@ -59,9 +59,9 @@ public class PlayerChunkMapEntry {
         return false;
     }
 
-    /** The chunk was sent to its watchers (here: it is loaded and someone watches it). */
+    /** The chunk has finished generation, is ready to send, and is tracked by at least one player. */
     public boolean isSentToPlayers() {
-        return playerChunkMap.contains(pos.x, pos.z) && !getWatchingPlayers().isEmpty();
+        return playerChunkMap.isSentToPlayers(pos.x, pos.z);
     }
 
     public void sendPacket(legacyconnector.v1_12_2.net.minecraft.network.Packet<?> packetIn) {

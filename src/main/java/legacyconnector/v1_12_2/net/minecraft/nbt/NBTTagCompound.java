@@ -1,18 +1,20 @@
 package legacyconnector.v1_12_2.net.minecraft.nbt;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
-import net.minecraft.nbt.ByteArrayTag;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.IntArrayTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
 public class NBTTagCompound extends NBTBase {
     private final CompoundTag mcc$tag;
     /** Child views handed out, so repeated getCompoundTag(key) calls return the same object like in 1.12.2. */
     private final Map<String, NBTBase> mcc$children = new HashMap<>();
+    private final Map<String, Tag> mcc$childTags = new HashMap<>();
+    private final Set<legacyconnector.v1_12_2.net.minecraft.item.ItemStack> mcc$stackViews =
+            Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
 
     public NBTTagCompound() {
         this(new CompoundTag());
@@ -24,7 +26,44 @@ public class NBTTagCompound extends NBTBase {
 
     @Override
     public CompoundTag mcc$modern() {
+        mcc$syncMutableChildren();
         return mcc$tag;
+    }
+
+    private void mcc$syncMutableChildren() {
+        for (String key : new java.util.ArrayList<>(mcc$children.keySet())) {
+            NBTBase child = mcc$children.get(key);
+            Tag current = mcc$tag.get(key);
+            if (current != null && current == mcc$childTags.get(key)) {
+                Tag updated = child.mcc$modern();
+                mcc$tag.put(key, updated);
+                mcc$childTags.put(key, updated);
+            } else {
+                mcc$children.remove(key);
+                mcc$childTags.remove(key);
+            }
+        }
+    }
+
+    public void mcc$bindStackView(legacyconnector.v1_12_2.net.minecraft.item.ItemStack view) {
+        synchronized (mcc$stackViews) {
+            boolean wasEmpty = mcc$stackViews.isEmpty();
+            mcc$stackViews.add(view);
+            if (wasEmpty) mcc$setChangeListener(this::mcc$changed);
+        }
+    }
+
+    public void mcc$unbindStackView(legacyconnector.v1_12_2.net.minecraft.item.ItemStack view) {
+        synchronized (mcc$stackViews) {
+            mcc$stackViews.remove(view);
+            if (mcc$stackViews.isEmpty()) mcc$setChangeListener(null);
+        }
+    }
+
+    private void mcc$changed() {
+        synchronized (mcc$stackViews) {
+            for (var view : mcc$stackViews) org.kylepitcock.legacyconnector.v1_12_2.bridge.Stacks1122.touched(view);
+        }
     }
 
     @Override
@@ -38,68 +77,69 @@ public class NBTTagCompound extends NBTBase {
 
     public void setTag(String key, NBTBase value) {
         if (value == null) return; // legacy stored null and failed later when writing the tag
-        mcc$children.remove(key);
-        mcc$tag.put(key, value.mcc$modern());
-        if (value instanceof NBTTagCompound || value instanceof NBTTagList) {
-            // Keep the caller's object live: legacy code often mutates a tag after inserting it.
-            Tag inserted = mcc$tag.get(key);
-            NBTBase view = NBTBase.mcc$wrap(inserted, this);
-            mcc$children.put(key, view);
-            value.mcc$parent = this;
-            if (value instanceof NBTTagCompound c && inserted instanceof CompoundTag) {
-                mcc$children.put(key, c);
-                mcc$tag.put(key, c.mcc$tag);
-            } else if (value instanceof NBTTagList l && inserted instanceof ListTag) {
-                mcc$children.put(key, l);
-                mcc$tag.put(key, l.mcc$modern());
-            }
-        }
+        mcc$children.put(key, value);
+        value.mcc$parent = this;
+        Tag inserted = value.mcc$modern();
+        mcc$tag.put(key, inserted);
+        mcc$childTags.put(key, inserted);
         mcc$markDirty();
     }
 
     public void setByte(String key, byte value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putByte(key, value);
         mcc$markDirty();
     }
 
     public void setShort(String key, short value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putShort(key, value);
         mcc$markDirty();
     }
 
     public void setInteger(String key, int value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putInt(key, value);
         mcc$markDirty();
     }
 
     public void setLong(String key, long value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putLong(key, value);
         mcc$markDirty();
     }
 
     public void setFloat(String key, float value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putFloat(key, value);
         mcc$markDirty();
     }
 
     public void setDouble(String key, double value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putDouble(key, value);
         mcc$markDirty();
     }
 
     public void setString(String key, String value) {
+        mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.putString(key, value);
         mcc$markDirty();
     }
 
     public void setByteArray(String key, byte[] value) {
-        mcc$tag.putByteArray(key, value);
-        mcc$markDirty();
+        setTag(key, new NBTTagByteArray(value));
     }
 
     public void setIntArray(String key, int[] value) {
-        mcc$tag.putIntArray(key, value);
-        mcc$markDirty();
+        setTag(key, new NBTTagIntArray(value));
     }
 
     public void setBoolean(String key, boolean value) {
@@ -108,11 +148,14 @@ public class NBTTagCompound extends NBTBase {
 
     public NBTBase getTag(String key) {
         NBTBase child = mcc$children.get(key);
-        if (child != null && mcc$tag.get(key) == child.mcc$modern()) return child;
         Tag tag = mcc$tag.get(key);
+        if (child != null && tag != null && tag == mcc$childTags.get(key)) return child;
         if (tag == null) return null;
         NBTBase view = NBTBase.mcc$wrap(tag, this);
-        if (view instanceof NBTTagCompound || view instanceof NBTTagList) mcc$children.put(key, view);
+        if (view != null) {
+            mcc$children.put(key, view);
+            mcc$childTags.put(key, tag);
+        }
         return view;
     }
 
@@ -158,11 +201,13 @@ public class NBTTagCompound extends NBTBase {
     }
 
     public byte[] getByteArray(String key) {
-        return mcc$tag.get(key) instanceof ByteArrayTag b ? b.getAsByteArray() : new byte[0];
+        NBTBase tag = getTag(key);
+        return tag instanceof NBTTagByteArray array ? array.getByteArray() : new byte[0];
     }
 
     public int[] getIntArray(String key) {
-        return mcc$tag.get(key) instanceof IntArrayTag i ? i.getAsIntArray() : new int[0];
+        NBTBase tag = getTag(key);
+        return tag instanceof NBTTagIntArray array ? array.getIntArray() : new int[0];
     }
 
     /** Returns a live view; a missing key yields a detached empty compound, as in 1.12.2. */
@@ -183,6 +228,7 @@ public class NBTTagCompound extends NBTBase {
 
     public void removeTag(String key) {
         mcc$children.remove(key);
+        mcc$childTags.remove(key);
         mcc$tag.remove(key);
         mcc$markDirty();
     }
@@ -198,7 +244,7 @@ public class NBTTagCompound extends NBTBase {
 
     @Override
     public NBTTagCompound copy() {
-        return new NBTTagCompound(mcc$tag.copy());
+        return new NBTTagCompound(mcc$modern().copy());
     }
 
     public int getSize() {
