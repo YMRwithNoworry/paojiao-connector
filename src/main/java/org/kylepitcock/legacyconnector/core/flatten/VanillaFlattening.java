@@ -3,6 +3,7 @@ package org.kylepitcock.legacyconnector.core.flatten;
 import com.mojang.serialization.Dynamic;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -60,8 +61,8 @@ public final class VanillaFlattening {
             if (states != null) return;
             BlockState[] builtStates = new BlockState[4096];
             Map<BlockState, Integer> builtReverseStates = new HashMap<>();
-            Map<Block, Integer> builtReverseBlocks = new HashMap<>();
-            Map<Block, java.util.ArrayList<Integer>> keysByBlock = new HashMap<>();
+            Map<Block, Integer> builtReverseBlocks = new IdentityHashMap<>();
+            Map<Block, java.util.ArrayList<Integer>> keysByBlock = new IdentityHashMap<>();
             for (int key = 0; key < builtStates.length; key++) {
                 BlockState s = upgrade(BlockStateData.getTag(key));
                 builtStates[key] = s;
@@ -71,7 +72,7 @@ public final class VanillaFlattening {
                     keysByBlock.computeIfAbsent(s.getBlock(), block -> new java.util.ArrayList<>()).add(key);
                 }
             }
-            Map<Block, int[]> builtKeysByBlock = new HashMap<>(keysByBlock.size());
+            Map<Block, int[]> builtKeysByBlock = new IdentityHashMap<>(keysByBlock.size());
             keysByBlock.forEach((block, keys) -> {
                 int[] candidates = new int[keys.size()];
                 for (int i = 0; i < candidates.length; i++) candidates[i] = keys.get(i);

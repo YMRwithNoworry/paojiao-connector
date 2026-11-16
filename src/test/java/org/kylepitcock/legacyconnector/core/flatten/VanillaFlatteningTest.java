@@ -30,4 +30,9 @@ class VanillaFlatteningTest {
         assertTrue(expected >= 0);
         assertEquals(expected, VanillaFlattening.nearestLegacyKey(waterlogged));
     }
+
+    @Test
+    void nearestStateReturnsNoMatchForBlocksAddedAfterFlattening() {
+        assertEquals(-1, VanillaFlattening.nearestLegacyKey(Blocks.COPPER_BLOCK.defaultBlockState()));
+    }
 }
