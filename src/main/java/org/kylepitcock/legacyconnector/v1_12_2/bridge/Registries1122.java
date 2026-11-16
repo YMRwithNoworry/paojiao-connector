@@ -195,13 +195,13 @@ public final class Registries1122 {
             ResourceLocation name = value.getRegistryName();
             if (byName.putIfAbsent(name, value) == null) {
                 valuesSnapshot = null;
-                entityRegistryChanged(name);
+                entityRegistryChanged();
             }
             byValue.putIfAbsent(value, name);
         }
 
-        private void entityRegistryChanged(ResourceLocation name) {
-            if ((Object) this == ENTITIES && name != null && !"minecraft".equals(name.getNamespace())) {
+        private void entityRegistryChanged() {
+            if ((Object) this == ENTITIES) {
                 legacyconnector.v1_12_2.net.minecraft.entity.EntityList.mcc$registryChanged();
             }
         }
@@ -268,7 +268,7 @@ public final class Registries1122 {
             if (v != null) {
                 byValue.remove(v);
                 valuesSnapshot = null;
-                entityRegistryChanged(key);
+                entityRegistryChanged();
             }
             byId = null;
             return v;
@@ -294,7 +294,7 @@ public final class Registries1122 {
             byName.put(name, value);
             byValue.put(value, name);
             valuesSnapshot = null;
-            entityRegistryChanged(name);
+            entityRegistryChanged();
             onRegister.accept(value);
             mcc$added(value);
             if (value instanceof legacyconnector.v1_12_2.net.minecraftforge.fml.common.registry.EntityEntry entry) entry.mcc$registered();

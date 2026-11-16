@@ -9,9 +9,33 @@ public class EntityList {
     /** Spawn egg colours by entity name (filled when an entry gets its egg). */
     public static final java.util.Map<ResourceLocation, EntityEggInfo> ENTITY_EGGS = new java.util.concurrent.ConcurrentHashMap<>();
     private record CachedModEntry(long version, EntityEntry entry) {}
+    private record CachePolicy(long version, boolean cacheable) {}
 
     private static final java.util.concurrent.ConcurrentMap<Class<?>, CachedModEntry> MOD_ENTRIES_BY_CLASS = new java.util.concurrent.ConcurrentHashMap<>();
     private static volatile long modEntryVersion;
+    private static volatile CachePolicy modEntryCachePolicy;
+
+    /** An override can compute the class dynamically or have side effects, so those registries must be scanned. */
+    private static final ClassValue<Boolean> FIXED_ENTITY_CLASS = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            try {
+                return type.getMethod("getEntityClass").getDeclaringClass() == EntityEntry.class;
+            } catch (ReflectiveOperationException | SecurityException | LinkageError e) {
+                return false;
+            }
+        }
+    };
+
+    /** The fallback name depends only on the class, not on mutable registry contents. */
+    private static final ClassValue<String> VANILLA_PATH_BY_CLASS = new ClassValue<>() {
+        @Override
+        protected String computeValue(Class<?> cls) {
+            String name = cls.getSimpleName();
+            if (name.startsWith("Entity")) name = name.substring("Entity".length());
+            return name.isEmpty() ? "" : name.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT);
+        }
+    };
 
     /** Entity registry mutations invalidate class lookups cached by the hot entity AI path. */
     public static void mcc$registryChanged() {
@@ -20,24 +44,40 @@ public class EntityList {
     }
 
     private static EntityEntry modEntry(Class<? extends Entity> cls) {
-        if (cls == null) return null;
         long version = modEntryVersion;
-        CachedModEntry cached = MOD_ENTRIES_BY_CLASS.get(cls);
+        CachedModEntry cached = cls == null ? null : MOD_ENTRIES_BY_CLASS.get(cls);
         if (cached != null && cached.version() == version) return cached.entry();
-        for (EntityEntry entry : ForgeRegistries.ENTITIES.getValues()) {
-            ResourceLocation name = entry.getRegistryName();
-            if (entry.getEntityClass() != cls || name == null || "minecraft".equals(name.getNamespace())) continue;
-            if (modEntryVersion == version) {
-                CachedModEntry previous = MOD_ENTRIES_BY_CLASS.putIfAbsent(cls, new CachedModEntry(version, entry));
-                if (previous != null && previous.version() == version) return previous.entry();
+
+        java.util.List<EntityEntry> entries = ForgeRegistries.ENTITIES.getValues();
+        boolean cacheable = cls != null && canCacheModEntries(version, entries);
+        EntityEntry found = null;
+        for (EntityEntry entry : entries) {
+            // Keep the original short-circuit order, including an unnamed matching entry's exception.
+            if (entry.getEntityClass() == cls && !"minecraft".equals(entry.getRegistryName().getNamespace())) {
+                found = entry;
+                break;
             }
-            return entry;
         }
-        if (modEntryVersion == version) {
-            CachedModEntry previous = MOD_ENTRIES_BY_CLASS.putIfAbsent(cls, new CachedModEntry(version, null));
+        if (cacheable && modEntryVersion == version) {
+            CachedModEntry previous = MOD_ENTRIES_BY_CLASS.putIfAbsent(cls, new CachedModEntry(version, found));
             if (previous != null && previous.version() == version) return previous.entry();
         }
-        return null;
+        return found;
+    }
+
+    private static boolean canCacheModEntries(long version, java.util.List<EntityEntry> entries) {
+        CachePolicy policy = modEntryCachePolicy;
+        if (policy != null && policy.version() == version) return policy.cacheable();
+        boolean cacheable = true;
+        for (EntityEntry entry : entries) {
+            // Registry names are normally fixed before registration; an unnamed entry can acquire a name later.
+            if (entry.getRegistryName() == null || !FIXED_ENTITY_CLASS.get(entry.getClass())) {
+                cacheable = false;
+                break;
+            }
+        }
+        if (modEntryVersion == version) modEntryCachePolicy = new CachePolicy(version, cacheable);
+        return cacheable;
     }
 
     /** A spawn egg's entity and colours. */
@@ -65,9 +105,8 @@ public class EntityList {
     public static ResourceLocation getKey(Class<? extends Entity> cls) {
         EntityEntry entry = modEntry(cls);
         if (entry != null) return entry.getRegistryName();
-        String n = cls.getSimpleName();
-        if (n.startsWith("Entity")) n = n.substring("Entity".length());
-        return n.isEmpty() ? null : new ResourceLocation("minecraft", n.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT));
+        String path = VANILLA_PATH_BY_CLASS.get(cls);
+        return path.isEmpty() ? null : new ResourceLocation("minecraft", path);
     }
 
     public static ResourceLocation getKey(Entity entity) {

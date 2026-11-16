@@ -1,7 +1,10 @@
 package legacyconnector.v1_12_2.net.minecraft.entity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import legacyconnector.v1_12_2.net.minecraft.util.ResourceLocation;
 import legacyconnector.v1_12_2.net.minecraftforge.fml.common.registry.EntityEntry;
@@ -50,10 +53,134 @@ class EntityList1122Test {
         }
     }
 
+    @Test
+    void fallbackNamesPreserveFormattingAndReturnFreshLocations() {
+        ResourceLocation first = EntityList.getKey(ProbeEntity.class);
+        ResourceLocation second = EntityList.getKey(ProbeEntity.class);
+        assertEquals(new ResourceLocation("minecraft", "probe_entity"), first);
+        assertEquals(first, second);
+        assertNotSame(first, second);
+        assertEquals(new ResourceLocation("minecraft", "big_xml2_fish"), EntityList.getKey(EntityBigXML2Fish.class));
+        assertNull(EntityList.getKey(Entity.class));
+    }
+
+    @Test
+    void overriddenEntityClassIsReadOnEveryLookup() {
+        var registry = Registries1122.ENTITIES;
+        ResourceLocation name = new ResourceLocation("test", "mutable_entity");
+        MutableEntityEntry entry = new MutableEntityEntry(ProbeEntity.class);
+        entry.setRegistryName(name);
+        try {
+            registry.registerVanilla(entry);
+            assertSame(name, EntityList.getKey(ProbeEntity.class));
+            assertEquals(new ResourceLocation("minecraft", "big_xml2_fish"), EntityList.getKey(EntityBigXML2Fish.class));
+
+            entry.entityClass = EntityBigXML2Fish.class;
+            assertEquals(new ResourceLocation("minecraft", "probe_entity"), EntityList.getKey(ProbeEntity.class));
+            assertSame(name, EntityList.getKey(EntityBigXML2Fish.class));
+            assertEquals(-1, EntityList.getID(ProbeEntity.class));
+            assertEquals(registry.getID(entry), EntityList.getID(EntityBigXML2Fish.class));
+
+            entry.entityClass = ProbeEntity.class;
+            assertSame(name, EntityList.getKey(ProbeEntity.class));
+            assertEquals(new ResourceLocation("minecraft", "big_xml2_fish"), EntityList.getKey(EntityBigXML2Fish.class));
+        } finally {
+            registry.remove(name);
+        }
+    }
+
+    @Test
+    void unnamedEntryCanBeNamedAfterRegistration() {
+        var registry = Registries1122.ENTITIES;
+        ResourceLocation name = new ResourceLocation("test", "late_name");
+        EntityEntry entry = new EntityEntry(ProbeEntity.class, "late_name");
+        try {
+            registry.registerVanilla(entry);
+            assertThrows(NullPointerException.class, () -> EntityList.getKey(ProbeEntity.class));
+            entry.setRegistryName(name);
+            assertSame(name, EntityList.getKey(ProbeEntity.class));
+        } finally {
+            registry.remove(null);
+        }
+    }
+
+    @Test
+    void vanillaOverridesKeepTheirCallOrderAfterRegistryChanges() {
+        var registry = Registries1122.ENTITIES;
+        ResourceLocation modName = new ResourceLocation("test", "first_probe");
+        ResourceLocation vanillaName = new ResourceLocation("minecraft", "dynamic_probe");
+        EntityEntry first = entry(modName);
+        MutableEntityEntry dynamic = new MutableEntityEntry(ProbeEntity.class);
+        dynamic.setRegistryName(vanillaName);
+        try {
+            registry.registerVanilla(first);
+            assertSame(modName, EntityList.getKey(ProbeEntity.class));
+            assertSame(modName, EntityList.getKey(ProbeEntity.class));
+
+            registry.registerVanilla(dynamic);
+            dynamic.accessCount = 0;
+            assertSame(modName, EntityList.getKey(ProbeEntity.class));
+            assertSame(modName, EntityList.getKey(ProbeEntity.class));
+            assertEquals(0, dynamic.accessCount);
+
+            registry.remove(modName);
+            assertEquals(new ResourceLocation("minecraft", "probe_entity"), EntityList.getKey(ProbeEntity.class));
+            assertEquals(new ResourceLocation("minecraft", "probe_entity"), EntityList.getKey(ProbeEntity.class));
+            assertEquals(2, dynamic.accessCount);
+
+            dynamic.entityClass = EntityBigXML2Fish.class;
+            assertEquals(new ResourceLocation("minecraft", "probe_entity"), EntityList.getKey(ProbeEntity.class));
+            assertEquals(new ResourceLocation("minecraft", "big_xml2_fish"), EntityList.getKey(EntityBigXML2Fish.class));
+            assertEquals(4, dynamic.accessCount);
+        } finally {
+            registry.remove(modName);
+            registry.remove(vanillaName);
+        }
+    }
+
+    @Test
+    void nullClassCanMatchAnEntryWithoutBeingCached() {
+        var registry = Registries1122.ENTITIES;
+        ResourceLocation name = new ResourceLocation("test", "null_class");
+        EntityEntry entry = new EntityEntry(null, "null_class");
+        entry.setRegistryName(name);
+        try {
+            registry.registerVanilla(entry);
+            assertSame(name, EntityList.getKey((Class<? extends Entity>) null));
+            assertEquals(registry.getID(entry), EntityList.getID(null));
+        } finally {
+            registry.remove(name);
+        }
+        assertEquals(-1, EntityList.getID(null));
+        assertThrows(NullPointerException.class, () -> EntityList.getKey((Class<? extends Entity>) null));
+    }
+
+    private static final class MutableEntityEntry extends EntityEntry {
+        private Class<? extends Entity> entityClass;
+        private int accessCount;
+
+        MutableEntityEntry(Class<? extends Entity> entityClass) {
+            super(entityClass, "mutable_entity");
+            this.entityClass = entityClass;
+        }
+
+        @Override
+        public Class<? extends Entity> getEntityClass() {
+            accessCount++;
+            return entityClass;
+        }
+    }
+
     private static EntityEntry entry(ResourceLocation name) {
         EntityEntry entry = new EntityEntry(ProbeEntity.class, name.getPath());
         entry.setRegistryName(name);
         return entry;
+    }
+
+    private static final class EntityBigXML2Fish extends Entity {
+        EntityBigXML2Fish() {
+            super((legacyconnector.v1_12_2.net.minecraft.world.World) null);
+        }
     }
 
     private static final class ProbeEntity extends Entity {
