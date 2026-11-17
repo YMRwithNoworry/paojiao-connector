@@ -34,6 +34,7 @@ import org.kylepitcock.legacyconnector.v1_12_2.bridge.StatesBridge1122;
  * level: no neighbour updates, sounds or entity searches). Coordinates are absolute, so legacy code sees the modern height range.
  */
 public class World implements IBlockAccess {
+    private static final int LOADED_ENTITY_CAPACITY_LIMIT = 16_384;
     private final LevelAccessor access;
     private final Level level;
 
@@ -95,6 +96,7 @@ public class World implements IBlockAccess {
     private int lastLightningBolt;
     private legacyconnector.v1_12_2.net.minecraft.world.gen.ChunkProviderServer mcc$chunkProvider;
     private legacyconnector.v1_12_2.net.minecraft.world.storage.WorldInfo mcc$ownInfo;
+    private volatile int mcc$loadedEntityCapacityHint;
 
     protected World(Level level) {
         this((LevelAccessor) level);
@@ -254,12 +256,14 @@ public class World implements IBlockAccess {
     }
 
     public static List<Entity> mcc$get$loadedEntityList(World w) {
-        List<Entity> out = new ArrayList<>();
+        int capacityHint = w.mcc$loadedEntityCapacityHint;
+        List<Entity> out = capacityHint == 0 ? new ArrayList<>() : new ArrayList<>(Math.min(capacityHint, LOADED_ENTITY_CAPACITY_LIMIT));
         if (w.mcc$liveLevel() instanceof ServerLevel s) {
             for (var e : s.getAllEntities()) out.add(EntityBridge1122.wrap(e));
         } else if (w.mcc$liveLevel() != null && w.mcc$liveLevel().isClientSide()) {
             for (var e : org.kylepitcock.legacyconnector.v1_12_2.bridge.WorldClient1122.entities(w.mcc$liveLevel())) out.add(EntityBridge1122.wrap(e));
         }
+        w.mcc$loadedEntityCapacityHint = Math.min(out.size(), LOADED_ENTITY_CAPACITY_LIMIT);
         return out;
     }
 
