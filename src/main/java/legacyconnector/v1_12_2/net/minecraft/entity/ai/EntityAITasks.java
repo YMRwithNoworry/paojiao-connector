@@ -1,8 +1,10 @@
 package legacyconnector.v1_12_2.net.minecraft.entity.ai;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The 1.12.2 AI scheduler. Every third tick each task is re-evaluated (start when allowed and wanted, stop when it may no longer
@@ -20,6 +22,61 @@ public class EntityAITasks {
     private int disabledControlFlags;
     private net.minecraft.world.entity.Mob mcc$goalOwner;
     private boolean mcc$targets;
+
+    /** Reused on each game thread instead of allocating two collection snapshots for every hosted mob tick. */
+    private static final ThreadLocal<TaskSnapshot> TASK_SNAPSHOTS = ThreadLocal.withInitial(TaskSnapshot::new);
+
+    private static TaskSnapshot takeSnapshotBuffer() {
+        TaskSnapshot snapshot = TASK_SNAPSHOTS.get();
+        if (snapshot.inUse) return new TaskSnapshot(); // keep re-entrant callbacks isolated
+        snapshot.inUse = true;
+        return snapshot;
+    }
+
+    private static void releaseSnapshotBuffer(TaskSnapshot snapshot) {
+        snapshot.clear();
+        if (snapshot == TASK_SNAPSHOTS.get()) snapshot.inUse = false;
+    }
+
+    private static final class TaskSnapshot {
+        private static final int MAX_RETAINED_CAPACITY = 1024;
+        private EntityAITaskEntry[] taskEntries = new EntityAITaskEntry[8];
+        private EntityAITaskEntry[] executingEntries = new EntityAITaskEntry[8];
+        private int taskCount;
+        private int executingCount;
+        private boolean inUse;
+        private final Consumer<EntityAITaskEntry> addTask = this::addTask;
+        private final Consumer<EntityAITaskEntry> addExecuting = this::addExecuting;
+
+        private void addTask(EntityAITaskEntry entry) {
+            if (taskCount == taskEntries.length) taskEntries = Arrays.copyOf(taskEntries, taskEntries.length * 2);
+            taskEntries[taskCount++] = entry;
+        }
+
+        private void addExecuting(EntityAITaskEntry entry) {
+            if (executingCount == executingEntries.length) executingEntries = Arrays.copyOf(executingEntries, executingEntries.length * 2);
+            executingEntries[executingCount++] = entry;
+        }
+
+        private void captureTasks(Set<EntityAITaskEntry> source) {
+            taskCount = 0;
+            source.forEach(addTask);
+        }
+
+        private void captureExecuting(Set<EntityAITaskEntry> source) {
+            executingCount = 0;
+            source.forEach(addExecuting);
+        }
+
+        private void clear() {
+            Arrays.fill(taskEntries, 0, taskCount, null);
+            Arrays.fill(executingEntries, 0, executingCount, null);
+            taskCount = 0;
+            executingCount = 0;
+            if (taskEntries.length > MAX_RETAINED_CAPACITY) taskEntries = new EntityAITaskEntry[8];
+            if (executingEntries.length > MAX_RETAINED_CAPACITY) executingEntries = new EntityAITaskEntry[8];
+        }
+    }
 
     public EntityAITasks() {
     }
@@ -76,58 +133,99 @@ public class EntityAITasks {
 
     public void onUpdateTasks() {
         if (mcc$selector() != null) return; // the modern goal selector runs them
-        if (tickCount++ % tickRate == 0) {
-            for (EntityAITaskEntry e : new java.util.ArrayList<>(taskEntries)) {
-                if (e.using) {
-                    if (!canUse(e) || !canContinue(e)) {
-                        e.using = false;
-                        safe(e.action::resetTask);
-                        executingTaskEntries.remove(e);
+        TaskSnapshot snapshot = takeSnapshotBuffer();
+        try {
+            if (tickCount++ % tickRate == 0) {
+                snapshot.captureTasks(taskEntries);
+                for (int i = 0; i < snapshot.taskCount; i++) {
+                    EntityAITaskEntry e = snapshot.taskEntries[i];
+                    if (e.using) {
+                        if (!canUse(e) || !canContinue(e)) {
+                            e.using = false;
+                            safeReset(e.action, AiCallback.RESET_DURING_REEVALUATION);
+                            executingTaskEntries.remove(e);
+                        }
+                    } else if (canUse(e) && safeShouldExecute(e.action)) {
+                        e.using = true;
+                        safeStart(e.action);
+                        executingTaskEntries.add(e);
                     }
-                } else if (canUse(e) && safeTest(e.action::shouldExecute)) {
-                    e.using = true;
-                    safe(e.action::startExecuting);
-                    executingTaskEntries.add(e);
+                }
+            } else {
+                Iterator<EntityAITaskEntry> it = executingTaskEntries.iterator();
+                while (it.hasNext()) {
+                    EntityAITaskEntry e = it.next();
+                    if (!canContinue(e)) {
+                        e.using = false;
+                        safeReset(e.action, AiCallback.RESET_DURING_CONTINUATION_CHECK);
+                        it.remove();
+                    }
                 }
             }
-        } else {
-            Iterator<EntityAITaskEntry> it = executingTaskEntries.iterator();
-            while (it.hasNext()) {
-                EntityAITaskEntry e = it.next();
-                if (!canContinue(e)) {
-                    e.using = false;
-                    safe(e.action::resetTask);
-                    it.remove();
-                }
+            if (!executingTaskEntries.isEmpty()) {
+                snapshot.captureExecuting(executingTaskEntries);
+                for (int i = 0; i < snapshot.executingCount; i++) safeUpdate(snapshot.executingEntries[i].action);
             }
-        }
-        if (!executingTaskEntries.isEmpty()) {
-            for (EntityAITaskEntry e : new java.util.ArrayList<>(executingTaskEntries)) safe(e.action::updateTask);
+        } finally {
+            releaseSnapshotBuffer(snapshot);
         }
     }
 
-    private static final java.util.Set<Class<?>> FAILED = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    /** An AI task that throws (an API the layer lacks) is reported once per class and treated as not running. */
-    private static void safe(Runnable r) {
-        try {
-            r.run();
-        } catch (RuntimeException | LinkageError e) {
-            if (FAILED.add(r.getClass())) org.slf4j.LoggerFactory.getLogger("LegacyConnector/Entities").warn("An AI task failed: {}", e.toString());
-        }
+    private enum AiCallback {
+        SHOULD_EXECUTE, SHOULD_CONTINUE, RESET_DURING_REEVALUATION, RESET_DURING_CONTINUATION_CHECK, START, UPDATE
     }
 
-    private static boolean safeTest(java.util.function.BooleanSupplier s) {
+    private static final Set<AiCallback> FAILED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** An AI task that throws (an API the layer lacks) is reported once per callback site and treated as not running. */
+    private static void failed(AiCallback callback, Throwable e) {
+        if (FAILED.add(callback)) org.slf4j.LoggerFactory.getLogger("LegacyConnector/Entities").warn("An AI task failed: {}", e.toString());
+    }
+
+    private static boolean safeShouldExecute(EntityAIBase task) {
         try {
-            return s.getAsBoolean();
+            return task.shouldExecute();
         } catch (RuntimeException | LinkageError e) {
-            if (FAILED.add(s.getClass())) org.slf4j.LoggerFactory.getLogger("LegacyConnector/Entities").warn("An AI task failed: {}", e.toString());
+            failed(AiCallback.SHOULD_EXECUTE, e);
             return false;
         }
     }
 
+    private static boolean safeShouldContinue(EntityAIBase task) {
+        try {
+            return task.shouldContinueExecuting();
+        } catch (RuntimeException | LinkageError e) {
+            failed(AiCallback.SHOULD_CONTINUE, e);
+            return false;
+        }
+    }
+
+    private static void safeReset(EntityAIBase task, AiCallback callback) {
+        try {
+            task.resetTask();
+        } catch (RuntimeException | LinkageError e) {
+            failed(callback, e);
+        }
+    }
+
+    private static void safeStart(EntityAIBase task) {
+        try {
+            task.startExecuting();
+        } catch (RuntimeException | LinkageError e) {
+            failed(AiCallback.START, e);
+        }
+    }
+
+    private static void safeUpdate(EntityAIBase task) {
+        try {
+            task.updateTask();
+        } catch (RuntimeException | LinkageError e) {
+            failed(AiCallback.UPDATE, e);
+        }
+    }
+
     private boolean canContinue(EntityAITaskEntry e) {
-        return safeTest(e.action::shouldContinueExecuting);
+        return safeShouldContinue(e.action);
     }
 
     private boolean canUse(EntityAITaskEntry e) {

@@ -24,6 +24,11 @@ public class NBTTagCompound extends NBTBase {
         this.mcc$tag = tag;
     }
 
+    /** Reuses an entity's persistent-data view while the modern capability keeps the same backing compound. */
+    public static NBTTagCompound mcc$wrapPersistentData(CompoundTag tag, NBTTagCompound previous) {
+        return previous != null && previous.mcc$tag == tag ? previous : new NBTTagCompound(tag);
+    }
+
     @Override
     public CompoundTag mcc$modern() {
         mcc$syncMutableChildren();

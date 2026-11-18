@@ -964,10 +964,11 @@ public abstract class Entity implements legacyconnector.v1_12_2.net.minecraft.co
             if (mcc$localData == null) mcc$localData = new NBTTagCompound();
             return mcc$localData;
         }
-        return new NBTTagCompound(m.getPersistentData());
+        return mcc$entityData = NBTTagCompound.mcc$wrapPersistentData(m.getPersistentData(), mcc$entityData);
     }
 
     private NBTTagCompound mcc$localData;
+    private NBTTagCompound mcc$entityData;
 
     public int getEntityId() {
         return mcc$entity == null ? mcc$localId : mcc$entity.getId();

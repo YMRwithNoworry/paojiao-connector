@@ -19,6 +19,16 @@ measurements is part of Legacy Connector, so "no legacy mods" means Legacy Conne
 not a NeoForge install without it. Translation costs about 0.4 to 0.7 s per large jar (AgriCraft, Applied Energistics 2,
 Botania) on first launch.
 
+## 2026-11-18 1.12.2 bridge allocation pass
+
+This pass keeps the 1.12.2 behavior but removes two repeated bridge allocations. `Entity.getEntityData()` now reuses the legacy view while the modern persistent `CompoundTag` is the same object, and replaces it when the backing tag changes. `EntityAITasks` reuses per-thread, bounded snapshot arrays and calls the task methods directly instead of allocating a collection copy and a method-reference adapter on every hosted-mob tick. Re-entrant callbacks still get an independent snapshot; registration changes made during a pass are not visited until the next pass.
+
+The A/B run used JDK 21, NeoForge 21.1.258, the same copied world/configuration and four old jars (SRParasites 1.10.9, SRPExtra 1.9.8, SRP Cotesia 1.3.4h1 and GeckoLib 3.0.31), a seeded player, 6000 ticks, simulation/view distance 10 and 2209 loaded chunks. The baseline ran from a clean detached worktree; both runs completed and saved all three levels. JFR files are retained under `build/devtools/` as `perf-srp-baseline-census-7096.jfr` and `perf-srp-optimized-census-11792.jfr`.
+
+In the server-thread allocation stacks, the baseline sampled about 38.0 MB of `NBTTagCompound` construction under `Entity.getEntityData()` and about 427.8 MB of weighted allocations through that method including its support objects; the optimized recording had no allocation sample under that method (JFR's weighted samples are diagnostic, not an exact byte counter). The AI recording also no longer showed the baseline's `ArrayList` construction under `EntityAITasks.onUpdateTasks` (about 4.2 MB sampled in that run). End-to-end tick time remained close and variable: in the comparable 40–110 s post-seed window the baseline averaged 10.05 ms and the optimized run 10.33 ms, so this run does not justify claiming a whole-server tick-speed percentage. The benefit is attributable to the targeted allocation paths; mod AI, pathfinding and entity population remain the dominant variable work.
+
+The regression tests cover snapshot isolation during registration and re-entrant updates, persistent-view reuse and backing-tag replacement. The run still reports the pre-existing optional-mixin class warnings and the `srparasites:lodo` duplicate loot-pool warning in both A/B logs; this pass does not change those compatibility issues.
+
 ## Memory
 
 Legacy views of modern objects (the `World` of a level, an entity's legacy `Entity`, a connection's `NetworkManager`, ...) are
