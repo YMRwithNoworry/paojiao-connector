@@ -6,6 +6,9 @@ import java.util.regex.Pattern;
 /** Converts the small GLSL 1.20 syntax subset accepted by the modern core-profile shader pipeline. */
 public final class LegacyShaderConverter {
     private static final Pattern VERSION_120 = Pattern.compile("(?m)^[\\t ]*#version[\\t ]+120[\\t ]*$");
+    private static final Pattern VERSION_150_CORE = Pattern.compile("(?m)^\\h*#version\\h+150(?:\\h+core)?\\h*$");
+    private static final Pattern TEXTURE_2D_CALL = Pattern.compile("\\btexture2D(?=\\s*\\()");
+    private static final Pattern TEXTURE_2D_DEFINITION = Pattern.compile("(?m)^\\h*(?:#\\h*define|[A-Za-z_][A-Za-z0-9_]*)\\h+texture2D\\b");
     private static final Pattern UNSUPPORTED = Pattern.compile("#\\s*extension|\\b(?:texture1D|texture3D|textureCube|texture2DProj|texture2DLod|texture2DGrad)\\b");
     private static final Pattern BUILTIN = Pattern.compile("\\bgl_[A-Za-z0-9_]+\\b");
     private static final Pattern FRAGMENT_OUTPUT = Pattern.compile("\\bgl_FragColor\\b");
@@ -48,6 +51,14 @@ public final class LegacyShaderConverter {
         if (!include.find()) return sourceBytes;
         return (source.substring(0, include.end()) + "\n" + LEGACY_FOG_OVERLOAD + source.substring(include.end()))
                 .getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Some legacy mods declare GLSL 150 but still use the old sampler2D function. */
+    static byte[] replaceRemovedTexture2D(byte[] sourceBytes) {
+        String source = new String(sourceBytes, StandardCharsets.UTF_8);
+        if (!source.contains("texture2D") || !VERSION_150_CORE.matcher(source).find() || TEXTURE_2D_DEFINITION.matcher(source).find()) return sourceBytes;
+        var call = TEXTURE_2D_CALL.matcher(source);
+        return call.find() ? call.replaceAll("texture").getBytes(StandardCharsets.UTF_8) : sourceBytes;
     }
 
     /** Returns unchanged source when it is outside the supported core-profile subset. */

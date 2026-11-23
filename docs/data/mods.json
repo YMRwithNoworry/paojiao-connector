@@ -7648,7 +7648,7 @@
    "source": "client",
    "date": "2026-11-24",
    "status": "partial",
-   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved with native Superb Warfare 0.8.9.2; two render mixins, outline shader, and one entity attribute registration remain broken."
+   "notes": "NeoForge 21.1.267 with native Superb Warfare 0.8.9.2: four converted outline shaders compiled and the combined world saved. Two render mixins fail and one projectile is registered as a monster, triggering an attribute warning. Gameplay was not tested."
   },
   {
    "name": "Drama Generator: Ruby Edition Splash",

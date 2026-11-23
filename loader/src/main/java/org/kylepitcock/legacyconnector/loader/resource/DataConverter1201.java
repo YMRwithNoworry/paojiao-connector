@@ -182,10 +182,15 @@ public final class DataConverter1201 {
         boolean dataJson = path.startsWith("data/") && path.endsWith(".json");
         int namespaceEnd = path.startsWith("assets/") ? path.indexOf('/', "assets/".length()) : -1;
         boolean model = namespaceEnd > "assets/".length() && path.endsWith(".json") && path.startsWith("/models/", namespaceEnd);
-        if (namespaceEnd > "assets/".length() && path.startsWith("/shaders/core/", namespaceEnd)
+        if (namespaceEnd > "assets/".length() && path.startsWith("/shaders/", namespaceEnd)
                 && (path.endsWith(".vsh") || path.endsWith(".fsh"))) {
-            byte[] shader = LegacyShaderConverter.restoreLegacyFog(data);
-            if (shader != data) stats.add("shader_fog");
+            byte[] shader = LegacyShaderConverter.replaceRemovedTexture2D(data);
+            if (shader != data) stats.add("shader_texture2d");
+            if (path.startsWith("/shaders/core/", namespaceEnd)) {
+                byte[] withFog = LegacyShaderConverter.restoreLegacyFog(shader);
+                if (withFog != shader) stats.add("shader_fog");
+                shader = withFog;
+            }
             return List.of(new Out(path, shader));
         }
         if (!dataJson && !model) {
