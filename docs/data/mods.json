@@ -23244,7 +23244,7 @@
    "source": "client",
    "date": "2026-11-24",
    "status": "partial",
-   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached; worker-count mixin was dropped."
+   "notes": "NeoForge 21.1.267: the old Forge build reached the main menu but its worker-count mixin was dropped. The native Smooth Boot 1.0.0 fork reached and saved a combined world; scheduling was not benchmarked."
   },
   {
    "name": "Smooth Third Person Camera (STPC)",
@@ -23659,6 +23659,15 @@
    "date": "2026-11-08",
    "status": "fails",
    "notes": "Automated check: needs Minecraft or Forge features the layer does not have yet: net.minecraft.world.entity.EntityType.spawn, net.minecraft.world.entity.projectile.ProjectileUtil.getMobArrow, net.minecraft.world.item.BowItem.customArrow, net.minecraft.world.level.block.Block.getBeaconColorMultiplier, net.minecraft.world.level.block.Block.getExpDrop (+16 more)."
+  },
+  {
+   "name": "Starlight",
+   "version": "1.1.2+forge.1cda73c",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "crashes",
+   "notes": "NeoForge 21.1.267: isolated world creation failed in the legacy lighting scheduler because ChunkMap.releaseLightTicket(ChunkPos) no longer exists. Native ScalableLux 0.1.0.1 is a separate alternative that passed world creation, block light updates, and save in the combined client."
   },
   {
    "name": "Starminer Mod",
