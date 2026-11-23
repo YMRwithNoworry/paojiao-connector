@@ -55,7 +55,7 @@ def run_probe(jar_dir, out, zips=False):
         jar_arg = "@" + str(listing)
     cmd = [str(ROOT / ("gradlew.bat" if sys.platform == "win32" else "gradlew")), "-q", "checkLegacyMod", f"-PlegacyJar={jar_arg}", f"-PcheckJson={out}"]
     print(f"probing {len(jars)} jar(s) as one mod set ...", flush=True)
-    r = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    r = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
     if r.returncode != 0 or not pathlib.Path(out).exists():
         sys.exit(r.stdout[-3000:] + "\nprobe failed")
     for line in r.stdout.splitlines():   # the resource check says here whether it ran (it is skipped without the vanilla client jar)
@@ -69,7 +69,10 @@ def gap1201_targets():
     if env:
         return env
     arts = []
-    for base in (ROOT / "build" / "moddev" / "artifacts", ROOT.parents[2] / "build" / "moddev" / "artifacts"):   # a worktree reuses the main checkout's build
+    bases = [ROOT / "build" / "moddev" / "artifacts"]
+    if len(ROOT.parents) > 2:  # a worktree can reuse the main checkout's build
+        bases.append(ROOT.parents[2] / "build" / "moddev" / "artifacts")
+    for base in bases:
         arts = sorted(base.glob("neoforge-*-merged.jar")) + [j for j in sorted(base.glob("neoforge-*.jar"))
                                                               if "-merged" not in j.name and "-sources" not in j.name and "client-extra" not in j.name]
         if arts:
@@ -156,13 +159,17 @@ def run_gap1201(jar_dir, out, keep_detail=None):
     if os.environ.get("GAP1201_ASSUME_NATIVE"):   # e.g. mcjty/theoneprobe/api/,dev/emi/emi/api/,me/shedaniel/rei/ : API packages of libraries the pack gets as native 1.21.1 builds
         cmd.append("-Pgap.assumeNative=" + os.environ["GAP1201_ASSUME_NATIVE"])   # the report is of the jars AFTER the layer (facades, library bridges, renames)
     print(f"gap report for {len(jars)} Forge 1.20.1 jar(s) ...", flush=True)
-    r = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    r = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
     detail = pathlib.Path(str(report) + ".detail.tsv")
     if r.returncode != 0 or not detail.exists():
         sys.exit(r.stdout[-3000:] + "\nprobe failed")
     if keep_detail:   # the full per-jar symbol list (records keep only 20): tools/compat/atm9_run.py ranks the blockers from it
         import shutil
         shutil.copyfile(detail, keep_detail)
+    collect_gap_records(jars, detail, out)
+
+
+def collect_gap_records(jars, detail, out):
     missing, refs = {}, {}
     for line in detail.read_text(encoding="utf-8").splitlines():
         jar, k, sym = line.split("\t", 2)
@@ -181,6 +188,8 @@ def run_gap1201(jar_dir, out, keep_detail=None):
         rec = {"jar": j.name, "mc": "1.20.1", "mods": info, "classes": classes, "synthesizedMembers": 0, "references": refs.get(j.name, 0)}
         if info and all(m["id"].lower() in native_libraries() for m in info):
             rec["result"] = "obsolete"   # a library with a native 1.21.1 build of the same mod id: the layer skips this jar (NativeLibraries1201), the native build is what runs
+        elif j.name not in refs:
+            rec.update({"result": "not_scanned", "reason": "No link scan record; check the translation log"})
         elif miss:
             rec.update({"result": "unresolved", "unresolved": len(miss), "missing": miss[:20]})
         else:
@@ -475,4 +484,5 @@ def main():
                 sys.exit(2)
 
 
-main()
+if __name__ == "__main__":
+    main()

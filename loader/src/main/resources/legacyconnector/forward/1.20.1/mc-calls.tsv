@@ -84,6 +84,10 @@ net/minecraft/world/item/crafting/Recipe	getResultItem	(Lnet/minecraft/core/Regi
 net/minecraft/stats/ServerRecipeBook	contains	(Lnet/minecraft/world/item/crafting/Recipe;)Z	RecipeCompat	contains	-
 net/minecraft/world/item/crafting/RecipeManager	getRecipeFor	(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/Container;Lnet/minecraft/world/level/Level;)Ljava/util/Optional;	RecipeCompat	getRecipeFor	-
 net/minecraft/world/item/crafting/RecipeManager	getRecipesFor	(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/Container;Lnet/minecraft/world/level/Level;)Ljava/util/List;	RecipeCompat	getRecipesFor	-
+net/minecraft/world/item/crafting/RecipeManager	getAllRecipesFor	(Lnet/minecraft/world/item/crafting/RecipeType;)Ljava/util/List;	RecipeCompat	getAllRecipesFor	-
+net/minecraft/world/item/crafting/RecipeManager	getRecipes	()Ljava/util/Collection;	RecipeCompat	getRecipes	-
+net/minecraft/world/item/crafting/RecipeManager	byKey	(Lnet/minecraft/resources/ResourceLocation;)Ljava/util/Optional;	RecipeCompat	byKey	-
+net/minecraft/world/item/crafting/RecipeManager	replaceRecipes	(Ljava/lang/Iterable;)V	RecipeCompat	replaceRecipes	-
 com/mojang/blaze3d/vertex/VertexConsumer	vertex	(DDD)Lcom/mojang/blaze3d/vertex/VertexConsumer;	VertexCompat	vertex	-
 com/mojang/blaze3d/vertex/VertexConsumer	vertex	(Lorg/joml/Matrix4f;FFF)Lcom/mojang/blaze3d/vertex/VertexConsumer;	VertexCompat	vertex	-
 com/mojang/blaze3d/vertex/VertexConsumer	color	(IIII)Lcom/mojang/blaze3d/vertex/VertexConsumer;	VertexCompat	color	-
@@ -127,6 +131,7 @@ net/minecraft/world/item/ShovelItem	<init>	(Lnet/minecraft/world/item/Tier;FFLne
 net/minecraft/world/item/PickaxeItem	<init>	(Lnet/minecraft/world/item/Tier;IFLnet/minecraft/world/item/Item$Properties;)V	=args	0,MiscCompat.diggerProps@0+1+2+3	(Lnet/minecraft/world/item/Tier;Lnet/minecraft/world/item/Item$Properties;)V
 net/minecraft/world/item/HoeItem	<init>	(Lnet/minecraft/world/item/Tier;IFLnet/minecraft/world/item/Item$Properties;)V	=args	0,MiscCompat.diggerProps@0+1+2+3	(Lnet/minecraft/world/item/Tier;Lnet/minecraft/world/item/Item$Properties;)V
 net/minecraft/world/level/block/FenceGateBlock	<init>	(Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;Lnet/minecraft/world/level/block/state/properties/WoodType;)V	=swap	<init>	(Lnet/minecraft/world/level/block/state/properties/WoodType;Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;)V
+net/minecraft/world/level/block/SignBlock	<init>	(Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;Lnet/minecraft/world/level/block/state/properties/WoodType;)V	=swap	<init>	(Lnet/minecraft/world/level/block/state/properties/WoodType;Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;)V
 net/minecraft/world/level/block/StandingSignBlock	<init>	(Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;Lnet/minecraft/world/level/block/state/properties/WoodType;)V	=swap	<init>	(Lnet/minecraft/world/level/block/state/properties/WoodType;Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;)V
 net/minecraft/world/level/block/WallSignBlock	<init>	(Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;Lnet/minecraft/world/level/block/state/properties/WoodType;)V	=swap	<init>	(Lnet/minecraft/world/level/block/state/properties/WoodType;Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;)V
 net/minecraft/world/level/block/CeilingHangingSignBlock	<init>	(Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;Lnet/minecraft/world/level/block/state/properties/WoodType;)V	=swap	<init>	(Lnet/minecraft/world/level/block/state/properties/WoodType;Lnet/minecraft/world/level/block/state/BlockBehaviour$Properties;)V
@@ -577,6 +582,7 @@ net/minecraft/world/entity/ai/attributes/AttributeSupplier	hasAttribute	(Lnet/mi
 net/minecraft/world/entity/ai/attributes/AttributeSupplier	getBaseValue	(Lnet/minecraft/world/entity/ai/attributes/Attribute;)D	MiddleCompat	supplierGetBaseValue
 net/minecraft/world/entity/ai/attributes/AttributeInstance	removePermanentModifier	(Ljava/util/UUID;)Z	MiddleCompat	removePermanentModifier
 net/minecraft/world/entity/ai/attributes/AttributeInstance	<init>	(Lnet/minecraft/world/entity/ai/attributes/Attribute;Ljava/util/function/Consumer;)V	=args	HolderCompat.holder@0,1	(Lnet/minecraft/core/Holder;Ljava/util/function/Consumer;)V
+net/minecraft/world/scores/Scoreboard	addObjective	(Ljava/lang/String;Lnet/minecraft/world/scores/criteria/ObjectiveCriteria;Lnet/minecraft/network/chat/Component;Lnet/minecraft/world/scores/criteria/ObjectiveCriteria$RenderType;)Lnet/minecraft/world/scores/Objective;	MiddleCompat	addObjective
 net/minecraft/world/scores/Scoreboard	getOrCreatePlayerScore	(Ljava/lang/String;Lnet/minecraft/world/scores/Objective;)Lorg/kylepitcock/legacyconnector/v1_20_1/migrate/LegacyScore;	MiddleCompat	playerScore
 net/minecraft/world/scores/Scoreboard	hasPlayerScore	(Ljava/lang/String;Lnet/minecraft/world/scores/Objective;)Z	MiddleCompat	hasPlayerScore
 net/minecraft/world/scores/Scoreboard	getPlayerScores	(Ljava/lang/String;)Ljava/util/Map;	MiddleCompat	playerScores

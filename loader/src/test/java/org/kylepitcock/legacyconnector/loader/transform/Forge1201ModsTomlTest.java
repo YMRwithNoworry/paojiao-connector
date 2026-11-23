@@ -1,8 +1,10 @@
 package org.kylepitcock.legacyconnector.loader.transform;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class Forge1201ModsTomlTest {
@@ -28,6 +30,27 @@ class Forge1201ModsTomlTest {
         assertFalse(migrated.contains("[[dependencies.examplemod]]"), migrated);
         assertTrue(migrated.contains("modId=\"neoforge\""), migrated);
         assertTrue(migrated.contains("modId=\"palladium\""), migrated);
+    }
+
+    @Test
+    void mergesManifestMixinConfigsWithoutDuplicatingTomlEntries() {
+        String input = """
+                [[mods]]
+                modId="example"
+                description='''
+                [[mixins]]
+                config = "manifest-only.json"
+                '''
+                [[ mixins ]] # existing registration
+                config = 'shared.mixins.json' # preserve this registration
+                requiredMods = ["dependency"]
+                """;
+        String migrated = Forge1201Transformer.modsToml(input,
+                List.of("shared.mixins.json", "manifest-only.json", "manifest-only.json"));
+        assertEquals(1, migrated.lines().filter(l -> l.contains("shared.mixins.json")).count());
+        assertEquals(1, migrated.lines().filter(l -> l.equals("config=\"manifest-only.json\"")).count());
+        assertTrue(migrated.contains("description='''\n[[mixins]]\nconfig = \"manifest-only.json\"\n'''"), migrated);
+        assertTrue(migrated.contains("requiredMods = [\"dependency\"]"), migrated);
     }
 
     @Test

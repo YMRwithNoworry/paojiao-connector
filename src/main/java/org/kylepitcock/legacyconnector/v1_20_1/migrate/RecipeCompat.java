@@ -1,5 +1,8 @@
 package org.kylepitcock.legacyconnector.v1_20_1.migrate;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.RegistryAccess;
@@ -46,6 +49,38 @@ public final class RecipeCompat {
     public static List getRecipesFor(RecipeManager manager, RecipeType type, Container container, Level level) {
         List<RecipeHolder> found = manager.getRecipesFor(type, BridgeHelpers.input(container), level);
         return found.stream().map(RecipeHolder::value).toList();
+    }
+
+    public static <I extends net.minecraft.world.item.crafting.RecipeInput, T extends Recipe<I>> List<T> getAllRecipesFor(
+            RecipeManager manager, RecipeType<T> type) {
+        return manager.getAllRecipesFor(type).stream().map(RecipeHolder::value).toList();
+    }
+
+    public static Collection<Recipe<?>> getRecipes(RecipeManager manager) {
+        return manager.getRecipes().stream().<Recipe<?>>map(RecipeHolder::value).toList();
+    }
+
+    public static Optional<Recipe<?>> byKey(RecipeManager manager, net.minecraft.resources.ResourceLocation id) {
+        return manager.byKey(id).map(RecipeHolder::value);
+    }
+
+    /** Preserve the manager's ids when legacy code filters or reorders its recipe collection. */
+    public static void replaceRecipes(RecipeManager manager, Iterable<Recipe<?>> recipes) {
+        var existing = new IdentityHashMap<Recipe<?>, RecipeHolder<?>>();
+        for (RecipeHolder<?> holder : manager.getRecipes()) existing.put(holder.value(), holder);
+        var replacement = new ArrayList<RecipeHolder<?>>();
+        for (Recipe<?> recipe : recipes) {
+            RecipeHolder<?> holder = existing.get(recipe);
+            if (holder == null) {
+                var method = legacy(recipe, "getId");
+                if (method == null || !(invoke(method, recipe) instanceof net.minecraft.resources.ResourceLocation id)) {
+                    throw new IllegalArgumentException("Cannot replace recipes with an unregistered recipe without an id: " + recipe);
+                }
+                holder = new RecipeHolder<>(id, recipe);
+            }
+            replacement.add(holder);
+        }
+        manager.replaceRecipes(replacement);
     }
 
     public static boolean contains(net.minecraft.stats.ServerRecipeBook book, Recipe recipe) {

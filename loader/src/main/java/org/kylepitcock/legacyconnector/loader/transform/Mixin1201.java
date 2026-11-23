@@ -82,6 +82,7 @@ final class Mixin1201 {
             fixAll(f.visibleAnnotations, ctx);
         }
         for (MethodNode m : node.methods) defineSynchedDataHandler(m);
+        if (targets.size() == 1) st.stringsMoved += ChatMixin1201.apply(node, targets.getFirst());
         String shadow = missingShadow(node, targets, h);
         if (shadow != null) {
             st.dropped.add(node.name + " (@Shadow " + shadow + " does not exist in " + targets.get(0) + ")");

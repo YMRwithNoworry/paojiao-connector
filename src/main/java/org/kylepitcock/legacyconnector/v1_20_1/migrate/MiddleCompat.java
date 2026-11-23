@@ -783,6 +783,13 @@ public final class MiddleCompat {
         return instance.removeModifier(HolderCompat.modifierId(id));
     }
 
+    /** Legacy objectives have no automatic display updates or custom number format. */
+    public static net.minecraft.world.scores.Objective addObjective(net.minecraft.world.scores.Scoreboard scoreboard, String name,
+            net.minecraft.world.scores.criteria.ObjectiveCriteria criteria, net.minecraft.network.chat.Component displayName,
+            net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType renderType) {
+        return scoreboard.addObjective(name, criteria, displayName, renderType, false, null);
+    }
+
     /** {@code scoreboard.getOrCreatePlayerScore(String name, Objective)}. */
     public static LegacyScore playerScore(net.minecraft.world.scores.Scoreboard scoreboard, String name, net.minecraft.world.scores.Objective objective) {
         return new LegacyScore(scoreboard.getOrCreatePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly(name), objective), name);

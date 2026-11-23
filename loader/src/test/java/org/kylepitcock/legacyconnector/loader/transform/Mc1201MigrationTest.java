@@ -149,6 +149,35 @@ class Mc1201MigrationTest implements Opcodes {
     }
 
     @Test
+    void recipeManagerCallsWithChangedGenericTypesUseLegacyBridge() {
+        String manager = "net/minecraft/world/item/crafting/RecipeManager";
+        String[][] signatures = {
+                {"getAllRecipesFor", "(Lnet/minecraft/world/item/crafting/RecipeType;)Ljava/util/List;"},
+                {"getRecipes", "()Ljava/util/Collection;"},
+                {"byKey", "(Lnet/minecraft/resources/ResourceLocation;)Ljava/util/Optional;"},
+                {"replaceRecipes", "(Ljava/lang/Iterable;)V"}
+        };
+        ClassNode c = cls("test/RecipeHooks", "java/lang/Object");
+        for (String[] signature : signatures) {
+            String name = signature[0];
+            String descriptor = signature[1];
+            String helperDescriptor = "(L" + manager + ";" + descriptor.substring(1);
+            MethodNode m = method(c, ACC_PUBLIC | ACC_STATIC, name, helperDescriptor);
+            m.instructions.add(new VarInsnNode(ALOAD, 0));
+            if (!descriptor.startsWith("()")) m.instructions.add(new VarInsnNode(ALOAD, 1));
+            m.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, manager, name, descriptor, false));
+            m.instructions.add(new InsnNode(descriptor.endsWith("V") ? RETURN : ARETURN));
+        }
+        assertEquals(signatures.length, apply(c).calls);
+        for (MethodNode m : c.methods) {
+            MethodInsnNode call = find(m, MIGRATE + "RecipeCompat", m.name);
+            assertNotNull(call);
+            assertEquals(INVOKESTATIC, call.getOpcode());
+            assertEquals(m.desc, call.desc);
+        }
+    }
+
+    @Test
     void itemStackNbtCallsGoToTheHelper() {
         ClassNode c = cls("test/Mod", "java/lang/Object");
         MethodNode m = method(c, ACC_PUBLIC | ACC_STATIC, "tag", "(L" + STACK + ";)L" + CT + ";");
@@ -277,6 +306,45 @@ class Mc1201MigrationTest implements Opcodes {
         assertEquals(1, apply(c).calls);
         assertNotNull(find(m, gameRenderer, "getPositionTexColorShader"),
                 "the 1.20.1 shader getter must be renamed to its 1.21.1 equivalent");
+        verify(c);
+    }
+
+    @Test
+    void formerForgeLazyInterfaceCallsUseClassMethodReferences() {
+        String lazy = "net/neoforged/neoforge/common/util/Lazy";
+        ClassNode c = cls("test/LazyCalls", "java/lang/Object");
+        MethodNode m = method(c, ACC_PUBLIC | ACC_STATIC, "read", "(Ljava/util/function/Supplier;)Ljava/lang/Object;");
+        m.instructions.add(new VarInsnNode(ALOAD, 0));
+        MethodInsnNode factory = new MethodInsnNode(INVOKESTATIC, lazy, "of", "(Ljava/util/function/Supplier;)L" + lazy + ";", true);
+        MethodInsnNode get = new MethodInsnNode(INVOKEINTERFACE, lazy, "get", "()Ljava/lang/Object;", true);
+        m.instructions.add(factory);
+        m.instructions.add(get);
+        m.instructions.add(new InsnNode(ARETURN));
+
+        assertEquals(2, apply(c).calls);
+        assertEquals(INVOKESTATIC, factory.getOpcode());
+        assertFalse(factory.itf);
+        assertEquals(INVOKEVIRTUAL, get.getOpcode());
+        assertFalse(get.itf);
+        verify(c);
+    }
+
+    @Test
+    void legacyEntityDataAccessorGettersUseRecordAccessors() {
+        String accessor = "net/minecraft/network/syncher/EntityDataAccessor";
+        String serializer = "()Lnet/minecraft/network/syncher/EntityDataSerializer;";
+        ClassNode c = cls("test/EntityDataAccess", "java/lang/Object");
+        MethodNode m = method(c, ACC_PUBLIC | ACC_STATIC, "read", "(L" + accessor + ";)" + serializer.substring(2));
+        m.instructions.add(new VarInsnNode(ALOAD, 0));
+        m.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, accessor, "getId", "()I", false));
+        m.instructions.add(new InsnNode(POP));
+        m.instructions.add(new VarInsnNode(ALOAD, 0));
+        m.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, accessor, "getSerializer", serializer, false));
+        m.instructions.add(new InsnNode(ARETURN));
+
+        assertEquals(2, apply(c).calls);
+        assertEquals("()I", find(m, accessor, "id").desc);
+        assertEquals(serializer, find(m, accessor, "serializer").desc);
         verify(c);
     }
 

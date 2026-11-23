@@ -368,9 +368,10 @@ final class Mc1201Migration {
                     if (call.getOpcode() == Opcodes.INVOKEVIRTUAL) call.setOpcode(Opcodes.INVOKEINTERFACE);
                     c.calls++;
                 }
-                if (call.getOpcode() == Opcodes.INVOKEINTERFACE && CLASSES_THAT_WERE_INTERFACES.contains(call.owner)) {
-                    call.setOpcode(Opcodes.INVOKEVIRTUAL);
+                if (call.itf && CLASSES_THAT_WERE_INTERFACES.contains(call.owner)) {
+                    if (call.getOpcode() == Opcodes.INVOKEINTERFACE) call.setOpcode(Opcodes.INVOKEVIRTUAL);
                     call.itf = false;
+                    c.calls++;
                 }
                 if (call.name.equals("<init>")) {
                     TypeInsnNode made = call.getOpcode() == Opcodes.INVOKESPECIAL && !news.isEmpty() && news.peek().desc.equals(call.owner) ? news.pop() : null;
@@ -429,11 +430,12 @@ final class Mc1201Migration {
         }
     }
 
-    /** Library interfaces of 1.20.1 that are classes now under the renamed name (GeckoLib's {@code CoreGeoBone} became {@code GeoBone}): their calls are virtual. */
     /** Classes of 1.20.1 that are interfaces in 1.21.1 (DataResult: Datafixer Upper 6 to 8): static calls need an interface method reference. */
     private static final java.util.Set<String> CLASSES_THAT_BECAME_INTERFACES = java.util.Set.of("com/mojang/serialization/DataResult");
 
-    private static final java.util.Set<String> CLASSES_THAT_WERE_INTERFACES = java.util.Set.of("software/bernie/geckolib/cache/object/GeoBone");
+    /** Former interfaces that need a class method reference, including for static factory calls. */
+    private static final java.util.Set<String> CLASSES_THAT_WERE_INTERFACES = java.util.Set.of(
+            "software/bernie/geckolib/cache/object/GeoBone", "net/neoforged/neoforge/common/util/Lazy");
 
     /** Functional interfaces whose buffer parameter became a {@code RegistryFriendlyByteBuf}: a lambda written for the 1.20.1 {@code FriendlyByteBuf} would not link. */
     private static final java.util.Set<String> REGISTRY_BUFFER_INTERFACES = java.util.Set.of("net/neoforged/neoforge/network/IContainerFactory");
@@ -461,6 +463,12 @@ final class Mc1201Migration {
         for (int i = 0; i < d.bsmArgs.length; i++) {
             if (!(d.bsmArgs[i] instanceof org.objectweb.asm.Handle hd)) continue;
             int tag = hd.getTag();
+            if (hd.isInterface() && CLASSES_THAT_WERE_INTERFACES.contains(hd.getOwner())) {
+                if (tag == Opcodes.H_INVOKEINTERFACE) tag = Opcodes.H_INVOKEVIRTUAL;
+                hd = new org.objectweb.asm.Handle(tag, hd.getOwner(), hd.getName(), hd.getDesc(), false);
+                d.bsmArgs[i] = hd;
+                c.calls++;
+            }
             if (tag < Opcodes.H_INVOKEVIRTUAL || tag > Opcodes.H_NEWINVOKESPECIAL || hd.getOwner().startsWith("[")) continue;
             boolean ctor = tag == Opcodes.H_NEWINVOKESPECIAL;
             Call rule = null;

@@ -88,8 +88,8 @@ def analyse(records, miss, native_by_jar, libs):
         syms = miss.get(r["jar"], set())
         if r["result"] == "obsolete":
             cat = "library_native"   # replaced by the native 1.21.1 build of the same mod id (libraries.tsv)
-        elif r["result"] == "links":
-            cat = "links"
+        elif r["result"] in ("links", "not_scanned"):
+            cat = r["result"]
         else:
             cat = "unresolved"
         jars.append({"jar": r["jar"], "id": m["id"], "name": m["name"], "version": m["version"], "classes": r.get("classes", 0), "cat": cat,
@@ -159,7 +159,7 @@ def main():
     nat = [j for j in jars if j["native"]]
     aband = [j for j in jars if not j["native"] and j["cat"] != "library_native"]
     summary = {"date": datetime.date.today().isoformat(), "label": a.label, "jars": n_total, "links": cats["links"], "unresolved": cats["unresolved"],
-               "library_native": cats["library_native"], "has_1211_version": len(nat), "has_1211_version_links": sum(1 for j in nat if j["cat"] == "links"),
+               "library_native": cats["library_native"], "not_scanned": cats["not_scanned"], "has_1211_version": len(nat), "has_1211_version_links": sum(1 for j in nat if j["cat"] == "links"),
                "abandoned": len(aband), "abandoned_links": sum(1 for j in aband if j["cat"] == "links"),
                "abandoned_unresolved": sum(1 for j in aband if j["cat"] == "unresolved"),
                "unresolved_symbols_total": sum(j["unresolved"] for j in jars)}

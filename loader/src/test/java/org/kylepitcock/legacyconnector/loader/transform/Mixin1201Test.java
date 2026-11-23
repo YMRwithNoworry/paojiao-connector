@@ -145,6 +145,33 @@ class Mixin1201Test implements Opcodes {
     }
 
     @Test
+    void chatRenderInjectionKeepsItsOriginalBodyBehindAnAdapter() {
+        String args = "Lnet/minecraft/client/gui/GuiGraphics;III";
+        String callback = "Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfo;";
+        String original = "(" + args + callback + ")V";
+        String injectType = "Lorg/spongepowered/asm/mixin/injection/Inject;";
+        ClassNode chat = mixin("test/Chat", "net/minecraft/client/gui/components/ChatComponent");
+        ClassNode other = mixin("test/Other", "net/minecraft/client/gui/Gui");
+        for (ClassNode node : List.of(chat, other)) {
+            MethodNode handler = new MethodNode(ACC_PRIVATE, "onRender", original, null, null);
+            node.methods.add(handler);
+            AnnotationNode annotation = inject(handler, injectType, "render", "", 0);
+            ((AnnotationNode) ((List<?>) annotation.values.get(3)).getFirst()).values = List.of("value", "HEAD");
+            Mixin1201.apply(node, Map.of(), new Mc1201Hierarchy(), Mc1201Tables.get(), new Mixin1201.Stats());
+        }
+        assertEquals(1, other.methods.size());
+        assertEquals(2, chat.methods.size());
+        MethodNode old = chat.methods.getFirst(), adapter = chat.methods.getLast();
+        assertEquals(original, old.desc);
+        assertTrue(old.invisibleAnnotations.isEmpty());
+        assertEquals("(" + args + "Z" + callback + ")V", adapter.desc);
+        assertEquals(List.of("render(" + args + "Z)V"), adapter.invisibleAnnotations.getFirst().values.get(1));
+        var call = (org.objectweb.asm.tree.MethodInsnNode) adapter.instructions.getLast().getPrevious();
+        assertEquals(old.name, call.name);
+        assertEquals(old.desc, call.desc);
+    }
+
+    @Test
     void nonMixinJsonIsLeftAlone() {
         String json = "{\"package\":\"x\",\"name\":\"y\"}";
         assertEquals(json, Mixin1201.config(json, Set.of(), null));
