@@ -79,6 +79,32 @@ class DataConverter1201Test {
     }
 
     @Test
+    void patchouliGuideKeepsItsBookIdAndExistingConditions() {
+        same("""
+                {"type":"minecraft:crafting_shapeless","ingredients":[{"item":"minecraft:book"}],
+                 "result":{"id":"patchouli:guide_book","components":{"patchouli:book":"m:guide"}},
+                 "neoforge:conditions":[{"type":"neoforge:mod_loaded","modid":"other"},
+                                        {"type":"neoforge:mod_loaded","modid":"patchouli"}]}""",
+                one("data/m/recipes/guide.json", """
+                        {"type":"minecraft:crafting_shapeless","ingredients":[{"item":"minecraft:book"}],
+                         "result":{"item":"patchouli:guide_book","nbt":{"patchouli:book":"m:guide"}},
+                         "conditions":[{"type":"forge:mod_loaded","modid":"other"}]}""", "data/m/recipe/guide.json"));
+    }
+
+    @Test
+    void patchouliPotionStacksBecomeComponentArguments() {
+        String path = "assets/m/patchouli_books/guide/en_us/entries/potion.json";
+        same("""
+                {"icon":"minecraft:potion[minecraft:potion_contents={potion:\\\"m:drink\\\"}]",
+                 "pages":[{"type":"patchouli:spotlight","item":"minecraft:splash_potion[minecraft:potion_contents={potion:\\\"m:drink\\\"}]",
+                           "text":"Example: minecraft:potion{Potion:'m:drink'}"}]}""",
+                one(path, """
+                        {"icon":"minecraft:potion{\\\"Potion\\\":\\\"m:drink\\\"}",
+                         "pages":[{"type":"patchouli:spotlight","item":"minecraft:splash_potion{Potion:'m:drink'}",
+                                   "text":"Example: minecraft:potion{Potion:'m:drink'}"}]}""", path));
+    }
+
+    @Test
     void modRecipeTypesKeepTheirFormat() {
         same("{\"type\":\"create:milling\",\"ingredients\":[{\"item\":\"a:b\"}],\"results\":[{\"item\":\"c:d\"}],\"neoforge:conditions\":[{\"type\":\"neoforge:mod_loaded\",\"modid\":\"x\"}]}",
                 one("data/m/recipes/s.json", "{\"type\":\"create:milling\",\"ingredients\":[{\"item\":\"a:b\"}],\"results\":[{\"item\":\"c:d\"}],\"conditions\":[{\"type\":\"forge:mod_loaded\",\"modid\":\"x\"}]}", "data/m/recipe/s.json"));

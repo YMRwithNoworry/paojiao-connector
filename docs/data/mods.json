@@ -19695,7 +19695,7 @@
    "source": "client",
    "date": "2026-11-24",
    "status": "partial",
-   "notes": "NeoForge 21.1.267: ROLLING and VAULTING round-tripped through the native pose codec; HUD registration no longer duplicates and the world saved with Crawl Fix. Patchouli guide data still missing."
+   "notes": "NeoForge 21.1.267: ROLLING and VAULTING round-tripped through the native pose codec; HUD registration no longer duplicates and the world saved with Crawl Fix. With native Patchouli 93, the recipe produced the correct book and the opened guide loaded the three Energy Drink pages."
   },
   {
    "name": "ParCool x TACZ Crawl Fix",

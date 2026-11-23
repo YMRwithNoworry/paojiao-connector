@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * {@code neoforge:}, Forge's tags are the convention tags {@code c:}...). Everything here is a pure function of one file (path and bytes), so a
  * jar translation can run it over every resource entry; the legacy formats it understands are documented per method.
  *
- * <p>What cannot be converted exactly (item NBT other than potions and enchantments, which becomes data components in 1.21) is dropped and
+ * <p>What cannot be converted exactly (item NBT without a known data component mapping) is dropped and
  * counted ({@code nbt_dropped}) rather than left in a form 1.21.1 would reject and discard the whole recipe or table for.
  */
 public final class DataConverter1201 {
@@ -87,6 +87,7 @@ public final class DataConverter1201 {
             "tools/shields", "tools/shield", "tools/bows", "tools/bow", "tools/crossbows", "tools/crossbow",
             "tools/fishing_rods", "tools/fishing_rod", "tools/tridents", "tools/spear", "tools/shears", "tools/shear");
     private static final Set<String> ITEM_PRED_HOLDERS = Set.of("item", "tool", "weapon", "mainhand", "offhand", "head", "chest", "legs", "feet", "held_item");
+    private static final JsonPrimitive PATCHOULI_GUIDE = new JsonPrimitive("patchouli:guide_book");
     private static final Pattern POTION = Pattern.compile("Potion\\s*:\\s*[\"']([^\"']+)[\"']");
     private static final Pattern ENCHANT_ENTRY = Pattern.compile("\\{\\s*(?:id\\s*:\\s*[\"']([^\"']+)[\"']\\s*,\\s*lvl\\s*:\\s*(\\d+)\\s*[sS]?|lvl\\s*:\\s*(\\d+)\\s*[sS]?\\s*,\\s*id\\s*:\\s*[\"']([^\"']+)[\"'])\\s*\\}");
 
@@ -182,6 +183,8 @@ public final class DataConverter1201 {
         boolean dataJson = path.startsWith("data/") && path.endsWith(".json");
         int namespaceEnd = path.startsWith("assets/") ? path.indexOf('/', "assets/".length()) : -1;
         boolean model = namespaceEnd > "assets/".length() && path.endsWith(".json") && path.startsWith("/models/", namespaceEnd);
+        boolean patchouli = path.endsWith(".json") && (namespaceEnd > 0 && path.startsWith("/patchouli_books/", namespaceEnd)
+                || dataJson && path.startsWith("/patchouli_books/", path.indexOf('/', "data/".length())));
         if (namespaceEnd > "assets/".length() && path.startsWith("/shaders/", namespaceEnd)
                 && (path.endsWith(".vsh") || path.endsWith(".fsh"))) {
             byte[] shader = LegacyShaderConverter.replaceRemovedTexture2D(data);
@@ -193,7 +196,7 @@ public final class DataConverter1201 {
             }
             return List.of(new Out(path, shader));
         }
-        if (!dataJson && !model) {
+        if (!dataJson && !model && !patchouli) {
             if (!np.equals(path)) stats.add(pathCategory(path));
             if (path.startsWith("data/") && path.endsWith(".nbt") && np.contains("/structure/")) {
                 StructureNbtConverter1201.Result converted = StructureNbtConverter1201.convert(data);
@@ -227,6 +230,9 @@ public final class DataConverter1201 {
         if (model) {
             generic(root, c, true);
             outs.add(new Out(np, bytes(root)));
+        } else if (patchouli) {
+            patchouliBookContents(root, c);
+            outs.add(new Out(np, c.categories.contains("patchouli_potion_stack") ? bytes(root) : data));
         } else if (dir.equals("recipe") && root.isJsonObject()) {
             outs.addAll(recipe(np, root.getAsJsonObject(), c));
         } else if (dir.equals("advancement") && root.isJsonObject()) {
@@ -648,6 +654,7 @@ public final class DataConverter1201 {
                 JsonObject stack = stack(res, c, "recipe_result");
                 if (t.equals("stonecutting") && o.has("count") && !stack.has("count")) stack.add("count", o.remove("count"));
                 o.add("result", stack);
+                if (PATCHOULI_GUIDE.equals(stack.get("id"))) requirePatchouli(o);
             }
         }
         for (String k : new String[] {"ingredient", "ingredients", "template", "base", "addition"}) {
@@ -657,6 +664,17 @@ public final class DataConverter1201 {
             JsonObject key = o.getAsJsonObject("key");
             for (String k : new ArrayList<>(key.keySet())) key.add(k, ingredient(key.get(k), c));
         }
+    }
+
+    private static void requirePatchouli(JsonObject recipe) {
+        JsonElement existing = recipe.get("neoforge:conditions");
+        if (existing != null && !existing.isJsonArray()) return;
+        JsonArray conditions = existing == null ? new JsonArray() : existing.getAsJsonArray();
+        JsonObject patchouli = new JsonObject();
+        patchouli.addProperty("type", "neoforge:mod_loaded");
+        patchouli.addProperty("modid", "patchouli");
+        if (!conditions.contains(patchouli)) conditions.add(patchouli);
+        recipe.add("neoforge:conditions", conditions);
     }
 
     /** {@code "minecraft:stone"} or {@code {item, count, nbt}} to {@code {id, count, components}}. */
@@ -673,7 +691,8 @@ public final class DataConverter1201 {
             switch (en.getKey()) {
                 case "item" -> out.add("id", en.getValue());
                 case "nbt" -> {
-                    JsonObject comps = components(en.getValue(), c);
+                    JsonObject comps = PATCHOULI_GUIDE.equals(o.get("item")) ? patchouliBookComponent(en.getValue()) : null;
+                    if (comps == null) comps = components(en.getValue(), c);
                     if (comps.size() > 0) out.add("components", comps);
                     c.hit("recipe_nbt");
                 }
@@ -681,6 +700,60 @@ public final class DataConverter1201 {
             }
         }
         return out;
+    }
+
+    private static JsonObject patchouliBookComponent(JsonElement nbt) {
+        JsonObject tag = legacyTagObject(nbt);
+        if (tag == null) return null;
+        JsonElement book = tag.get("patchouli:book");
+        if (book == null || !book.isJsonPrimitive() || !book.getAsJsonPrimitive().isString()) return null;
+        JsonObject components = new JsonObject();
+        components.add("patchouli:book", book);
+        return components;
+    }
+
+    private static JsonObject legacyTagObject(JsonElement tag) {
+        if (tag.isJsonPrimitive() && tag.getAsJsonPrimitive().isString()) {
+            try {
+                // Patchouli's quoted namespaced keys and legacy potion compounds parse as lenient JSON.
+                tag = JsonParser.parseString(tag.getAsString());
+            } catch (com.google.gson.JsonParseException ignored) {
+                return null;
+            }
+        }
+        return tag.isJsonObject() ? tag.getAsJsonObject() : null;
+    }
+
+    private static JsonElement patchouliBookContents(JsonElement value, Ctx c) {
+        if (value.isJsonObject()) {
+            for (var entry : value.getAsJsonObject().entrySet()) {
+                JsonElement converted = patchouliBookContents(entry.getValue(), c);
+                if (converted != entry.getValue()) entry.setValue(converted);
+            }
+        } else if (value.isJsonArray()) {
+            JsonArray array = value.getAsJsonArray();
+            for (int i = 0; i < array.size(); i++) {
+                JsonElement original = array.get(i);
+                JsonElement converted = patchouliBookContents(original, c);
+                if (converted != original) array.set(i, converted);
+            }
+        } else if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+            String stack = value.getAsString();
+            int tagStart = stack.indexOf('{');
+            if (tagStart < 0 || !stack.endsWith("}")) return value;
+            String item = stack.substring(0, tagStart);
+            switch (item) {
+                case "minecraft:potion", "minecraft:splash_potion", "minecraft:lingering_potion", "minecraft:tipped_arrow" -> { }
+                default -> { return value; }
+            }
+            JsonObject tag = legacyTagObject(new JsonPrimitive(stack.substring(tagStart)));
+            if (tag == null || tag.size() != 1) return value;
+            JsonElement potion = tag.get("Potion");
+            if (potion == null || !potion.isJsonPrimitive() || !potion.getAsJsonPrimitive().isString()) return value;
+            c.hit("patchouli_potion_stack");
+            return new JsonPrimitive(item + "[minecraft:potion_contents={potion:" + GSON.toJson(potion) + "}]");
+        }
+        return value;
     }
 
     private static JsonElement ingredient(JsonElement e, Ctx c) {
