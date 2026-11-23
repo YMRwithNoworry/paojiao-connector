@@ -574,6 +574,7 @@ net/minecraft/client/multiplayer/ClientPacketListener	registryAccess	()Lnet/mine
 net/minecraft/client/resources/model/ModelResourceLocation	getNamespace	()Ljava/lang/String;	MiddleClientCompat	modelNamespace
 net/minecraft/client/resources/model/ModelResourceLocation	getPath	()Ljava/lang/String;	MiddleClientCompat	modelPath
 net/minecraft/client/resources/model/ModelResourceLocation	<init>	(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V	=args	MiddleClientCompat.modelId@0+1,2	(Lnet/minecraft/resources/ResourceLocation;Ljava/lang/String;)V
+net/minecraft/client/resources/sounds/Sound	<init>	(Ljava/lang/String;Lnet/minecraft/util/valueproviders/SampledFloat;Lnet/minecraft/util/valueproviders/SampledFloat;ILnet/minecraft/client/resources/sounds/Sound$Type;ZZI)V	MiddleClientCompat	newSound
 net/minecraft/client/gui/components/AbstractSelectionList	<init>	(Lnet/minecraft/client/Minecraft;IIIII)V	=args	0,1,2,3,5	(Lnet/minecraft/client/Minecraft;IIII)V
 net/minecraft/world/level/storage/loot/BuiltInLootTables	register	(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/resources/ResourceLocation;	LootTableCompat	lootTableId	(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/resources/ResourceLocation;
 net/minecraft/world/item/MobBucketItem	<init>	(Ljava/util/function/Supplier;Ljava/util/function/Supplier;Ljava/util/function/Supplier;Lnet/minecraft/world/item/Item$Properties;)V	LegacyMobBucketItem	create	-

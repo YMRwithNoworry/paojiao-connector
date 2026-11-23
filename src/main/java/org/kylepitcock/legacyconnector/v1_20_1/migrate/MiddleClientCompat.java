@@ -11,11 +11,13 @@ import net.minecraft.client.gui.components.MultiLineLabel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.valueproviders.SampledFloat;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -320,6 +322,11 @@ public final class MiddleClientCompat {
     /** The model location a 1.20.1 {@code new ModelResourceLocation(namespace, path, variant)} named. */
     public static ResourceLocation modelId(String namespace, String path) {
         return ResourceLocation.fromNamespaceAndPath(namespace, path);
+    }
+
+    public static Sound newSound(String id, SampledFloat volume, SampledFloat pitch, int weight, Sound.Type type,
+            boolean stream, boolean preload, int attenuationDistance) {
+        return new Sound(ResourceLocation.parse(id), volume, pitch, weight, type, stream, preload, attenuationDistance);
     }
 
     public static String modelNamespace(net.minecraft.client.resources.model.ModelResourceLocation location) {
