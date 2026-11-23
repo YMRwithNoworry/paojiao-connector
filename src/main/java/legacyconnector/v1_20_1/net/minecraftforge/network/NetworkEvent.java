@@ -2,36 +2,52 @@ package legacyconnector.v1_20_1.net.minecraftforge.network;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.Event;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** Forge 1.20.1's packet event; only its {@link Context} is used by mods (it is what a message consumer receives). */
+/** Forge 1.20.1's play payload event and message handling context. */
 public class NetworkEvent extends Event {
     private final Context context;
+    private final FriendlyByteBuf payload;
 
     public NetworkEvent(Context context) {
-        this.context = context;
+        this(context, null);
     }
 
-    public net.minecraft.network.FriendlyByteBuf getPayload() {
-        return null;
+    private NetworkEvent(Context context, FriendlyByteBuf payload) {
+        this.context = context;
+        this.payload = payload;
+    }
+
+    public FriendlyByteBuf getPayload() {
+        return payload;
     }
 
     public Supplier<Context> getSource() {
         return () -> context;
     }
 
-    /** Forge's event for a custom payload that reached the client (mods subscribe to read raw payloads of other channels); never posted here. */
+    /** A custom payload sent by the client. */
     public static class ClientCustomPayloadEvent extends NetworkEvent {
         public ClientCustomPayloadEvent(Context context) {
             super(context);
         }
+
+        public ClientCustomPayloadEvent(Context context, FriendlyByteBuf payload) {
+            super(context, payload);
+        }
     }
 
+    /** A custom payload sent by the server. */
     public static class ServerCustomPayloadEvent extends NetworkEvent {
         public ServerCustomPayloadEvent(Context context) {
             super(context);
+        }
+
+        public ServerCustomPayloadEvent(Context context, FriendlyByteBuf payload) {
+            super(context, payload);
         }
     }
 

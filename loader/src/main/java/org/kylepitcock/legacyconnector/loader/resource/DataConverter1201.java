@@ -176,11 +176,12 @@ public final class DataConverter1201 {
 
     // ---- entry point ------------------------------------------------------------------------------------------------------------
 
-    /** Converts one resource entry. Apart from binary structure NBT, entries other than data/assets JSON keep their bytes and mapped path. */
+    /** Converts data JSON, binary structures and JSON below the namespace's top-level models directory. */
     public static List<Out> convert(String path, byte[] data, Stats stats) {
         String np = mapPath(path);
         boolean dataJson = path.startsWith("data/") && path.endsWith(".json");
-        boolean model = path.startsWith("assets/") && path.endsWith(".json") && path.contains("/models/");
+        int namespaceEnd = path.startsWith("assets/") ? path.indexOf('/', "assets/".length()) : -1;
+        boolean model = namespaceEnd > "assets/".length() && path.endsWith(".json") && path.startsWith("/models/", namespaceEnd);
         if (!dataJson && !model) {
             if (!np.equals(path)) stats.add(pathCategory(path));
             if (path.startsWith("data/") && path.endsWith(".nbt") && np.contains("/structure/")) {

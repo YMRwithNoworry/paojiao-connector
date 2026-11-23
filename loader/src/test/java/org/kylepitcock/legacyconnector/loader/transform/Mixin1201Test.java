@@ -13,9 +13,13 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 /** Mixin handling of the 1.20.1 translation: names in annotation strings, relaxed requirements, dropped mixins, harmless configs. */
 class Mixin1201Test implements Opcodes {
@@ -169,6 +173,63 @@ class Mixin1201Test implements Opcodes {
         var call = (org.objectweb.asm.tree.MethodInsnNode) adapter.instructions.getLast().getPrevious();
         assertEquals(old.name, call.name);
         assertEquals(old.desc, call.desc);
+    }
+
+    @Test
+    void presenceHudUsesNativeRenderInputsAndKeepsTheCancellableLegacyBody() {
+        String gui = "legacyconnector/v1_20_1/net/minecraftforge/client/gui/overlay/ForgeGui";
+        String graphics = "net/minecraft/client/gui/GuiGraphics";
+        String delta = "net/minecraft/client/DeltaTracker";
+        String callback = "org/spongepowered/asm/mixin/injection/callback/CallbackInfo";
+        String legacyArgs = "L" + gui + ";L" + graphics + ";FII";
+        String nativeArgs = "L" + graphics + ";L" + delta + ";";
+        String target = "com/tacz/guns/client/gui/overlay/GunHudOverlay";
+        ClassNode presence = mixin("com/tacz/presence/mixin/GunHudOverlayMixin", target);
+        ClassNode unrelated = mixin("test/OtherGunHudMixin", target);
+        for (ClassNode node : List.of(presence, unrelated)) {
+            MethodNode handler = new MethodNode(ACC_PUBLIC, "onRender", "(" + legacyArgs + "L" + callback + ";)V", null, null);
+            handler.instructions.add(new VarInsnNode(ALOAD, 6));
+            handler.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, callback, "cancel", "()V", false));
+            handler.instructions.add(new InsnNode(RETURN));
+            node.methods.add(handler);
+            AnnotationNode annotation = inject(handler, "Lorg/spongepowered/asm/mixin/injection/Inject;", "render", "", 0);
+            var at = (AnnotationNode) ((List<?>) annotation.values.get(3)).getFirst();
+            at.values = List.of("value", "HEAD");
+            annotation.visit("cancellable", true);
+            handler.visibleAnnotations = handler.invisibleAnnotations;
+            handler.invisibleAnnotations = null;
+            Mixin1201.apply(node, Map.of(), new Mc1201Hierarchy(), Mc1201Tables.get(), new Mixin1201.Stats());
+        }
+        assertEquals(1, unrelated.methods.size());
+        assertEquals(2, presence.methods.size());
+        MethodNode original = presence.methods.getFirst(), adapter = presence.methods.getLast();
+        assertEquals(List.of(callback + ".cancel()V"), calls(original));
+        assertEquals("(" + nativeArgs + "L" + callback + ";)V", adapter.desc);
+        for (MethodNode handler : List.of(original, adapter)) {
+            var annotation = handler.visibleAnnotations.getFirst();
+            String args = handler == original ? legacyArgs : nativeArgs;
+            assertEquals(List.of(), annotation.values.get(annotation.values.indexOf("method") + 1));
+            var selector = (AnnotationNode) ((List<?>) annotation.values.get(annotation.values.indexOf("target") + 1)).getFirst();
+            assertEquals("Lorg/spongepowered/asm/mixin/injection/Desc;", selector.desc);
+            assertEquals(List.of("value", "render", "args", List.of(Type.getArgumentTypes("(" + args + ")V")),
+                    "ret", Type.VOID_TYPE, "min", 0, "max", 1), selector.values);
+            assertEquals(true, annotation.values.get(annotation.values.indexOf("cancellable") + 1));
+            assertEquals(0, annotation.values.get(annotation.values.indexOf("require") + 1));
+            assertEquals(0, annotation.values.get(annotation.values.indexOf("expect") + 1));
+        }
+        assertEquals(List.of(gui + ".mcc$instance()L" + gui + ";", delta + ".getGameTimeDeltaPartialTick(Z)F",
+                graphics + ".guiWidth()I", graphics + ".guiHeight()I", presence.name + "." + original.name + original.desc), calls(adapter));
+        AbstractInsnNode[] insns = adapter.instructions.toArray();
+        assertEquals(List.of(ALOAD, INVOKESTATIC, ALOAD, ALOAD, ICONST_0, INVOKEINTERFACE,
+                ALOAD, INVOKEVIRTUAL, ALOAD, INVOKEVIRTUAL, ALOAD, INVOKEVIRTUAL, RETURN),
+                java.util.Arrays.stream(insns).map(AbstractInsnNode::getOpcode).toList());
+        assertEquals(List.of(0, 1, 2, 1, 1, 3), java.util.Arrays.stream(insns)
+                .filter(VarInsnNode.class::isInstance).map(VarInsnNode.class::cast).map(in -> in.var).toList());
+    }
+
+    private static List<String> calls(MethodNode method) {
+        return java.util.Arrays.stream(method.instructions.toArray()).filter(MethodInsnNode.class::isInstance)
+                .map(MethodInsnNode.class::cast).map(in -> in.owner + "." + in.name + in.desc).toList();
     }
 
     @Test

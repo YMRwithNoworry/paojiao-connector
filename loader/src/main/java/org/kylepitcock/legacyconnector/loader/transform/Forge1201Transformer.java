@@ -300,7 +300,6 @@ public final class Forge1201Transformer {
         int palladiumGeckoAnimationChanges = 0;
         int palladiumGeckoModelAnimationChanges = 0;
         int palladiumCommandFunctionChanges = 0;
-        int palladiumPlayerSkinChanges = 0;
         int palladiumPlayerSkinFetcherChanges = 0;
         int palladiumFlightHandlerChanges = 0;
         int palladiumCustomProjectileChanges = 0;
@@ -346,10 +345,6 @@ public final class Forge1201Transformer {
             // Replace the removed SkinTextureCallback API before the generic soft-link pass.
             int palladiumPlayerSkinFetcherChange = PalladiumPlayerSkinFetcher1201.apply(node);
             palladiumPlayerSkinFetcherChanges += palladiumPlayerSkinFetcherChange;
-            // Adapt before Mc1201Migration redirects AddLayers.getSkin(String) to ClientCompat.getSkin.
-            // The PalladiumCore adapter must see and retarget the original lookup before that generic pass.
-            int palladiumPlayerSkinChange = PalladiumCorePlayerSkin1201.apply(node);
-            palladiumPlayerSkinChanges += palladiumPlayerSkinChange;
             int registeredArmorChange = adaptRegisteredArmor ? SuperbWarfareArmor1201.apply(node) : 0;
             registeredArmorChanges += registeredArmorChange;
             Mc1201Migration.Counts changed = Mc1201Migration.apply(node, hierarchy);
@@ -384,15 +379,17 @@ public final class Forge1201Transformer {
             int palladiumSelectionListChange = PalladiumSelectionLists1201.apply(node);
             palladiumSelectionListChanges += palladiumSelectionListChange;
             Mixin1201.apply(node, srg, hierarchy, Mc1201Tables.get(), mixinStats);
+            int settingsCallbacks = ClientSettingsMixin1201.apply(node);
+            if (settingsCallbacks > 0) result.notes.add("Client settings Mixin callbacks adapted to the 1.21.1 ClientInformation record: " + settingsCallbacks);
             migrated.put(node, viaCalls + changed.total() + palladiumChanges + palladiumAddonPackChange
                     + palladiumWidgetButtonChange + palladiumMixinChange + palladiumLootChange
                     + palladiumAccessoryScreenChange + palladiumAdvancementWidgetChange + palladiumPowersScreenChange
                     + palladiumSelectionListChange + palladiumSuitStandChange
                     + palladiumTailoringScreenChange + palladiumSheepColorChange
-                    + palladiumRendererRotationChange + palladiumRenderLayerChange + palladiumPlayerSkinChange
+                    + palladiumRendererRotationChange + palladiumRenderLayerChange
                     + palladiumPlayerSkinFetcherChange + palladiumCommandFunctionChange
                     + palladiumFlightHandlerChange + palladiumCustomProjectileChange
-                    + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange);
+                    + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange + settingsCallbacks);
         }
         if (registeredArmorChanges > 0) {
             result.notes.add("Legacy armor material constants adapted to native registered holders: " + registeredArmorChanges + " reads");
@@ -553,10 +550,6 @@ public final class Forge1201Transformer {
         if (palladiumCommandFunctionChanges > 0) {
             result.notes.add("Palladium CommandAbility and EnergyBeamAbility command-function execution migrated to the 1.21.1 queued API: "
                     + palladiumCommandFunctionChanges + " call site(s)");
-        }
-        if (palladiumPlayerSkinChanges > 0) {
-            result.notes.add("PalladiumCore player-skin lambda migrated in place from String to NeoForge PlayerSkin.Model; the original AddLayers callback and per-entity exception handling are preserved: "
-                    + palladiumPlayerSkinChanges + " lambda(s)");
         }
         if (palladiumPlayerSkinFetcherChanges > 0) {
             result.notes.add("Palladium PlayerSkinFetcher migrated from the removed SkinTextureCallback to SkinManager.getOrLoad / CompletableFuture.whenComplete: "

@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -356,6 +357,15 @@ class DataConverter1201Test {
 
         assertTrue(migrated.getAsJsonObject().has("neoforge:conditions"), migrated.toString());
         assertTrue(!migrated.getAsJsonObject().has("forge:conditions"), migrated.toString());
+    }
+
+    @Test
+    void customModelBundleKeepsItsHashedContent() {
+        String path = "assets/m/builtin/player/models/body.json";
+        byte[] contents = "{\r\n  \"material\": \"forge:bucket\"\r\n}\r\n".getBytes(StandardCharsets.UTF_8);
+        var result = DataConverter1201.convert(path, contents, new DataConverter1201.Stats()).getFirst();
+        assertEquals(path, result.path());
+        assertArrayEquals(contents, result.data());
     }
 
     @Test

@@ -21,6 +21,11 @@ import net.minecraft.resources.ResourceLocation;
 public final class MiddleClientCompat {
     private MiddleClientCompat() {}
 
+    /** The old User accessor built a profile from the session identity without contacting the profile service. */
+    public static com.mojang.authlib.GameProfile getGameProfile(net.minecraft.client.User user) {
+        return new com.mojang.authlib.GameProfile(user.getProfileId(), user.getName());
+    }
+
     // ------------------------------------------------------------------ player skins (PlayerSkin record)
 
     public static ResourceLocation getSkinLocation(PlayerInfo info) {

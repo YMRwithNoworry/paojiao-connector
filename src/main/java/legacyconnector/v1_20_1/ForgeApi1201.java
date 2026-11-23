@@ -46,7 +46,7 @@ public final class ForgeApi1201 {
 
     // ---- listeners on the wrong bus: Forge accepted them and never delivered the event; NeoForge throws ----
 
-    private static boolean wrongBus(IllegalArgumentException e) {
+    static boolean wrongBus(IllegalArgumentException e) {
         String m = String.valueOf(e.getMessage());
         return m.contains("not valid for this bus") || m.contains("not allowed on the common");
     }
@@ -133,8 +133,9 @@ public final class ForgeApi1201 {
                     register.getRegistryKey().location());
     }
 
-    /** Forge accepted {@code bus.register(obj)} for an object without subscriber methods (a mod registering its main class "just in case"); NeoForge throws. */
+    /** Forge accepted registrations without applicable subscriber methods; NeoForge rejects them. */
     public static void busRegister(net.neoforged.bus.api.IEventBus bus, Object target) {
+        if (LegacySubscriberRegistration1201.registerIfMixed(bus, target)) return;
         try {
             bus.register(target);
         } catch (IllegalArgumentException e) {
@@ -155,6 +156,10 @@ public final class ForgeApi1201 {
             if (!e.getMessage().contains("not valid for this bus")) throw e;
             registerEachMethod(bus, target);
         }
+    }
+
+    public static void unregisterSubscriber(net.neoforged.bus.api.IEventBus bus, Object target) {
+        LegacySubscriberRegistration1201.unregister(bus, target);
     }
 
     /**

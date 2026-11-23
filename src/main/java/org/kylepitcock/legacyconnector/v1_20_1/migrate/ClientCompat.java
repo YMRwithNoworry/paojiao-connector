@@ -195,10 +195,48 @@ public final class ClientCompat {
     }
 
     /** {@code EntityRenderersEvent.AddLayers.getSkin("default" | "slim")}: the player renderer of that model. */
-    @SuppressWarnings("unchecked")
-    public static net.minecraft.client.renderer.entity.LivingEntityRenderer getSkin(net.neoforged.neoforge.client.event.EntityRenderersEvent.AddLayers event, String name) {
-        return (net.minecraft.client.renderer.entity.LivingEntityRenderer) event.getSkin(skinModel(name));
+    public static net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> getSkin(
+            net.neoforged.neoforge.client.event.EntityRenderersEvent.AddLayers event, String name) {
+        return (net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?>) getPlayerSkin(event, name);
     }
+
+    public static net.minecraft.client.renderer.entity.EntityRenderer<?> getPlayerSkin(
+            net.neoforged.neoforge.client.event.EntityRenderersEvent.AddLayers event, String name) {
+        return event.getSkin(skinModel(name));
+    }
+
+    public static net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> getLivingRenderer(
+            net.neoforged.neoforge.client.event.EntityRenderersEvent.AddLayers event, net.minecraft.world.entity.EntityType<?> type) {
+        return event.getRenderer(type) instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> living ? living : null;
+    }
+
+    public static java.util.Set<String> getSkinNames(net.neoforged.neoforge.client.event.EntityRenderersEvent.AddLayers event) {
+        var names = new java.util.LinkedHashSet<String>();
+        for (var model : event.getSkins()) {
+            names.add(model == net.minecraft.client.resources.PlayerSkin.Model.WIDE ? "default" : model.id());
+        }
+        return names;
+    }
+
+    public static java.util.Map<com.mojang.authlib.minecraft.MinecraftProfileTexture.Type, com.mojang.authlib.minecraft.MinecraftProfileTexture>
+            getInsecureSkinInformation(net.minecraft.client.resources.SkinManager manager, com.mojang.authlib.GameProfile profile) {
+        var service = Minecraft.getInstance().getMinecraftSessionService();
+        var property = service.getPackedTextures(profile);
+        if (property == null) return java.util.Map.of();
+        return SKIN_INFORMATION.getUnchecked(property);
+    }
+
+    private static final com.google.common.cache.LoadingCache<com.mojang.authlib.properties.Property,
+            java.util.Map<com.mojang.authlib.minecraft.MinecraftProfileTexture.Type, com.mojang.authlib.minecraft.MinecraftProfileTexture>> SKIN_INFORMATION =
+            com.google.common.cache.CacheBuilder.newBuilder().maximumSize(256).build(com.google.common.cache.CacheLoader.from(property -> {
+                var textures = Minecraft.getInstance().getMinecraftSessionService().unpackTextures(property);
+                var values = new java.util.EnumMap<com.mojang.authlib.minecraft.MinecraftProfileTexture.Type,
+                        com.mojang.authlib.minecraft.MinecraftProfileTexture>(com.mojang.authlib.minecraft.MinecraftProfileTexture.Type.class);
+                if (textures.skin() != null) values.put(com.mojang.authlib.minecraft.MinecraftProfileTexture.Type.SKIN, textures.skin());
+                if (textures.cape() != null) values.put(com.mojang.authlib.minecraft.MinecraftProfileTexture.Type.CAPE, textures.cape());
+                if (textures.elytra() != null) values.put(com.mojang.authlib.minecraft.MinecraftProfileTexture.Type.ELYTRA, textures.elytra());
+                return java.util.Map.copyOf(values);
+            }));
 
     /** {@code Options.renderDebug} (F3 overlay shown): the debug overlay keeps the flag now. */
     public static boolean getRenderDebug(net.minecraft.client.Options options) {

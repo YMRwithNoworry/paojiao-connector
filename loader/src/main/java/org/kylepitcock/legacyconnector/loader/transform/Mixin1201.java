@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.kylepitcock.legacyconnector.loader.transform.compat.GunHudOverlayMixin1201;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -82,7 +83,11 @@ final class Mixin1201 {
             fixAll(f.visibleAnnotations, ctx);
         }
         for (MethodNode m : node.methods) defineSynchedDataHandler(m);
-        if (targets.size() == 1) st.stringsMoved += ChatMixin1201.apply(node, targets.getFirst());
+        if (targets.size() == 1) {
+            String target = targets.getFirst();
+            st.stringsMoved += ChatMixin1201.apply(node, target);
+            st.stringsMoved += GunHudOverlayMixin1201.apply(node, target);
+        }
         String shadow = missingShadow(node, targets, h);
         if (shadow != null) {
             st.dropped.add(node.name + " (@Shadow " + shadow + " does not exist in " + targets.get(0) + ")");

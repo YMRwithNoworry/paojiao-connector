@@ -277,6 +277,10 @@ public final class RoundCompat {
                 net.minecraft.server.network.CommonListenerCookie.createInitial(player.getGameProfile(), false));
     }
 
+    public static net.minecraft.network.Connection gameListenerConnection(net.minecraft.server.network.ServerGamePacketListenerImpl listener) {
+        return listener.getConnection();
+    }
+
     /** {@code TextColor.parseColor(String)}: a {@code DataResult} now; null for text that is no colour, as before. */
     public static net.minecraft.network.chat.TextColor parseColor(String text) {
         return net.minecraft.network.chat.TextColor.parseColor(text).result().orElse(null);

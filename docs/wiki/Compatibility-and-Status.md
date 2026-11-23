@@ -45,6 +45,12 @@ full run; "loads" does not mean every feature was played through.
 | JourneyMap / Custom Main Menu / Inventory Tweaks (1.7.10 versions) | Loaded like any other legacy mod. Custom Main Menu replaces the title screen (`GuiOpenEvent`/`GuiScreenEvent` are bridged; its panorama, logo and splash draw, buttons are being verified). The other two are not verified. | Report what you see. |
 | FastCraft, Hodgepodge, NEID and other engine/launcher patches | Intentionally not loaded (see [Bridges](Bridges.md)). | Use their modern equivalents. |
 
+## Forge 1.20.1 forward compatibility
+
+- Forge play-phase `EventNetworkChannel` payloads use negotiated NeoForge payload IDs and dispatch to Forge listeners on the network thread. Forge login query channels and custom version predicates are not translated.
+- The forward layer adapts the old renderer lookup and string-valued skin keys, and preserves which capability overload a mod called. A successful world smoke test does not verify every render hook, packet path, or gameplay feature.
+- ParCool x TACZ Crawl Fix 1.0.3 fails with native ParCool 3.3.1.0 and TaCZ 1.2.0: the NeoForge ParCool jar moved `Parkourability`, and the TaCZ crawl tick mixin requires a different event descriptor. Loading without TaCZ does not exercise the integration.
+
 ## What happens to a mod
 
 After launching, read **`logs/legacyconnector-report.txt`**. For every legacy jar it lists the detected version and mod
