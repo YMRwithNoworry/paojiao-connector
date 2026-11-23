@@ -141,6 +141,7 @@ public final class ForgeApi1201 {
         } catch (IllegalArgumentException e) {
             String message = e.getCause() != null && e.getCause().getMessage() != null ? e.getCause().getMessage() : e.getMessage();
             if (message != null && message.contains("IModBusEvent events are not allowed")) {
+                bus.unregister(target); // register may have attached earlier methods before encountering the wrong bus
                 registerSplit(bus, target);
                 return;
             }
@@ -265,6 +266,9 @@ public final class ForgeApi1201 {
             boolean isStatic = java.lang.reflect.Modifier.isStatic(method.getModifiers());
             if (!isStatic && isClass) continue;
             Class<? extends net.neoforged.bus.api.Event> eventType = (Class<? extends net.neoforged.bus.api.Event>) method.getParameterTypes()[0];
+            // The legacy overlay event was only posted on the mod bus. Mods can register the same
+            // object's game listeners on the game bus and bind its overlay handler on the mod bus.
+            if (eventType.getName().equals("legacyconnector.v1_20_1.net.minecraftforge.client.event.RegisterGuiOverlaysEvent")) continue;
             method.setAccessible(true);
             net.neoforged.bus.api.IEventBus where = net.neoforged.fml.event.IModBusEvent.class.isAssignableFrom(eventType) && modBus != null ? modBus : bus;
             where.addListener(sub.priority(), sub.receiveCanceled(), (Class) eventType, (java.util.function.Consumer) event -> {
