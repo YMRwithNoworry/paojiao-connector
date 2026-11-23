@@ -209,6 +209,10 @@ public final class MiddleClientCompat {
         return com.google.common.collect.ImmutableList.copyOf(format.getElements());
     }
 
+    public static com.google.common.collect.ImmutableList<String> getElementAttributeNames(com.mojang.blaze3d.vertex.VertexFormat format) {
+        return com.google.common.collect.ImmutableList.copyOf(format.getElementAttributeNames());
+    }
+
     public static int getIntegerSize(com.mojang.blaze3d.vertex.VertexFormat format) {
         return format.getVertexSize() / 4;
     }
@@ -218,11 +222,28 @@ public final class MiddleClientCompat {
         return format.getOffset(format.getElements().get(index));
     }
 
+    /** Legacy formats supplied the element's texture index, not its global format ID. */
+    public static VertexFormatElement newVertexFormatElement(int index, VertexFormatElement.Type type,
+            VertexFormatElement.Usage usage, int count) {
+        synchronized (VertexFormatElement.class) {
+            return VertexFormatElement.register(VertexFormatElement.findNextId(), index, type, usage, count);
+        }
+    }
+
     /** {@code new VertexFormat(ImmutableMap<String, VertexFormatElement>)}. */
     public static com.mojang.blaze3d.vertex.VertexFormat newVertexFormat(com.google.common.collect.ImmutableMap<String, VertexFormatElement> elements) {
         com.mojang.blaze3d.vertex.VertexFormat.Builder builder = com.mojang.blaze3d.vertex.VertexFormat.builder();
         elements.forEach(builder::add);
         return builder.build();
+    }
+
+    /** 1.21.1 reads animation through the sprite's resource metadata. */
+    public static net.minecraft.client.renderer.texture.SpriteContents newSpriteContents(ResourceLocation name,
+            net.minecraft.client.resources.metadata.animation.FrameSize size, com.mojang.blaze3d.platform.NativeImage image,
+            net.minecraft.client.resources.metadata.animation.AnimationMetadataSection animation) {
+        var metadata = new net.minecraft.server.packs.resources.ResourceMetadata.Builder()
+                .put(net.minecraft.client.resources.metadata.animation.AnimationMetadataSection.SERIALIZER, animation).build();
+        return new net.minecraft.client.renderer.texture.SpriteContents(name, size, image, metadata);
     }
 
     /** {@code consumer.putBulkData(pose, quad, r, g, b, light, overlay)}: fully opaque. */

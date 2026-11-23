@@ -11,6 +11,20 @@ public final class LegacyShaderConverter {
     private static final Pattern FRAGMENT_OUTPUT = Pattern.compile("\\bgl_FragColor\\b");
     private static final Pattern ATTRIBUTE = Pattern.compile("\\battribute\\b");
     private static final Pattern FRAG_COLOR_NAME = Pattern.compile("\\bfragColor\\b");
+    private static final Pattern VANILLA_FOG_IMPORT = Pattern.compile("(?m)^(\\h*#moj_import\\h+<(?:minecraft:)?fog\\.glsl>\\h*)$");
+    private static final Pattern LEGACY_FOG_DEFINITION = Pattern.compile("\\bfloat\\s+fog_distance\\s*\\(\\s*mat4\\b");
+    private static final String LEGACY_FOG_OVERLOAD = """
+            #ifndef LEGACYCONNECTOR_FOG_DISTANCE_1201
+            #define LEGACYCONNECTOR_FOG_DISTANCE_1201
+            float fog_distance(mat4 view, vec3 point, int shape) {
+                if (shape == 0) return fog_distance((view * vec4(point, 1.0)).xyz, shape);
+                vec3 origin = view[3].xyz;
+                vec3 horizontal = mat3(view) * vec3(point.x, 0.0, point.z) + origin;
+                vec3 vertical = view[1].xyz * point.y + origin;
+                return max(length(horizontal), length(vertical));
+            }
+            #endif
+            """;
 
     private LegacyShaderConverter() {}
 
@@ -24,6 +38,16 @@ public final class LegacyShaderConverter {
             if (!supported) return false;
         }
         return true;
+    }
+
+    /** Keep legacy callers of the vanilla fog include working without replacing that include for native shaders. */
+    static byte[] restoreLegacyFog(byte[] sourceBytes) {
+        String source = new String(sourceBytes, StandardCharsets.UTF_8);
+        if (!source.contains("fog_distance") || LEGACY_FOG_DEFINITION.matcher(source).find()) return sourceBytes;
+        var include = VANILLA_FOG_IMPORT.matcher(source);
+        if (!include.find()) return sourceBytes;
+        return (source.substring(0, include.end()) + "\n" + LEGACY_FOG_OVERLOAD + source.substring(include.end()))
+                .getBytes(StandardCharsets.UTF_8);
     }
 
     /** Returns unchanged source when it is outside the supported core-profile subset. */

@@ -196,6 +196,7 @@ net/minecraft/world/level/storage/LevelData	getYSpawn	()I	EntityCompat	spawnY
 net/minecraft/world/level/storage/LevelData	getZSpawn	()I	EntityCompat	spawnZ
 net/minecraft/world/level/block/state/BlockState	getValues	()Lcom/google/common/collect/ImmutableMap;	EntityCompat	stateValues
 net/minecraft/client/gui/screens/Screen	renderBackground	(Lnet/minecraft/client/gui/GuiGraphics;)V	ClientCompat	renderBackground
+net/minecraft/client/gui/screens/Screen	renderDirtBackground	(Lnet/minecraft/client/gui/GuiGraphics;)V	ClientCompat	renderDirtBackground
 net/minecraft/client/player/AbstractClientPlayer	getSkinTextureLocation	()Lnet/minecraft/resources/ResourceLocation;	ClientCompat	skinTexture
 net/minecraft/client/renderer/entity/ItemRenderer	getArmorFoilBuffer	(Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/renderer/RenderType;ZZ)Lcom/mojang/blaze3d/vertex/VertexConsumer;	=args	0,1,3	(Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/renderer/RenderType;Z)Lcom/mojang/blaze3d/vertex/VertexConsumer;
 net/minecraft/client/renderer/item/ItemProperties	getProperty	(Lnet/minecraft/world/item/Item;Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/client/renderer/item/ItemPropertyFunction;	ClientCompat	itemProperty
@@ -279,6 +280,8 @@ net/minecraft/world/entity/player/Player	getEntityReach	()D	ApiCompat	entityReac
 net/neoforged/neoforge/event/BuildCreativeModeTabContentsEvent	accept	(Ljava/util/function/Supplier;)V	ApiCompat	tabAccept	-
 net/neoforged/neoforge/event/BuildCreativeModeTabContentsEvent	accept	(Ljava/util/function/Supplier;Lnet/minecraft/world/item/CreativeModeTab$TabVisibility;)V	ApiCompat	tabAccept	-
 net/minecraft/world/item/enchantment/EnchantmentHelper	getDamageBonus	(Lnet/minecraft/world/item/ItemStack;Lorg/kylepitcock/legacyconnector/v1_20_1/migrate/LegacyMobType;)F	ApiCompat	damageBonus	-
+net/minecraft/world/damagesource/CombatRules	getDamageAfterAbsorb	(FFF)F	ApiCompat	damageAfterAbsorb	-
+net/minecraft/world/item/enchantment/EnchantmentHelper	getDamageProtection	(Ljava/lang/Iterable;Lnet/minecraft/world/damagesource/DamageSource;)I	ApiCompat	damageProtection	-
 net/minecraft/world/item/enchantment/EnchantmentHelper	doPostDamageEffects	(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/Entity;)V	ApiCompat	doPostDamageEffects	-
 net/minecraft/world/item/enchantment/EnchantmentHelper	doPostHurtEffects	(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/Entity;)V	ApiCompat	doPostHurtEffects	-
 net/minecraft/client/renderer/entity/MobRenderer	render	(Lnet/minecraft/world/entity/Mob;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V	=	-	(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V
@@ -552,9 +555,12 @@ net/minecraft/world/level/block/ColoredFallingBlock	<init>	(ILnet/minecraft/worl
 net/minecraft/world/level/block/state/BlockState	isPathfindable	(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/pathfinder/PathComputationType;)Z	=args	2	(Lnet/minecraft/world/level/pathfinder/PathComputationType;)Z
 # --- round 3 batch 8 (client)
 com/mojang/blaze3d/vertex/VertexFormat	getElements	()Lcom/google/common/collect/ImmutableList;	MiddleClientCompat	getElements
+com/mojang/blaze3d/vertex/VertexFormat	getElementAttributeNames	()Lcom/google/common/collect/ImmutableList;	MiddleClientCompat	getElementAttributeNames
 com/mojang/blaze3d/vertex/VertexFormat	getIntegerSize	()I	MiddleClientCompat	getIntegerSize
 com/mojang/blaze3d/vertex/VertexFormat	getOffset	(I)I	MiddleClientCompat	getOffset
 com/mojang/blaze3d/vertex/VertexFormat	<init>	(Lcom/google/common/collect/ImmutableMap;)V	MiddleClientCompat	newVertexFormat
+com/mojang/blaze3d/vertex/VertexFormatElement	<init>	(ILcom/mojang/blaze3d/vertex/VertexFormatElement$Type;Lcom/mojang/blaze3d/vertex/VertexFormatElement$Usage;I)V	MiddleClientCompat	newVertexFormatElement
+net/minecraft/client/renderer/texture/SpriteContents	<init>	(Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/client/resources/metadata/animation/FrameSize;Lcom/mojang/blaze3d/platform/NativeImage;Lnet/minecraft/client/resources/metadata/animation/AnimationMetadataSection;)V	MiddleClientCompat	newSpriteContents
 com/mojang/blaze3d/vertex/VertexConsumer	putBulkData	(Lcom/mojang/blaze3d/vertex/PoseStack$Pose;Lnet/minecraft/client/renderer/block/model/BakedQuad;FFFII)V	MiddleClientCompat	putBulkData
 com/mojang/blaze3d/vertex/VertexFormatElement$Type	getSize	()I	MiddleClientCompat	vertexElementTypeSize
 net/minecraft/client/multiplayer/MultiPlayerGameMode	getPickRange	()F	MiddleClientCompat	getPickRange

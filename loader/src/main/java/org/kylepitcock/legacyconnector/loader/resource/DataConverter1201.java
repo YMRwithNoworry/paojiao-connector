@@ -176,12 +176,18 @@ public final class DataConverter1201 {
 
     // ---- entry point ------------------------------------------------------------------------------------------------------------
 
-    /** Converts data JSON, binary structures and JSON below the namespace's top-level models directory. */
+    /** Converts data JSON, binary structures, model JSON and core GLSL assets. */
     public static List<Out> convert(String path, byte[] data, Stats stats) {
         String np = mapPath(path);
         boolean dataJson = path.startsWith("data/") && path.endsWith(".json");
         int namespaceEnd = path.startsWith("assets/") ? path.indexOf('/', "assets/".length()) : -1;
         boolean model = namespaceEnd > "assets/".length() && path.endsWith(".json") && path.startsWith("/models/", namespaceEnd);
+        if (namespaceEnd > "assets/".length() && path.startsWith("/shaders/core/", namespaceEnd)
+                && (path.endsWith(".vsh") || path.endsWith(".fsh"))) {
+            byte[] shader = LegacyShaderConverter.restoreLegacyFog(data);
+            if (shader != data) stats.add("shader_fog");
+            return List.of(new Out(path, shader));
+        }
         if (!dataJson && !model) {
             if (!np.equals(path)) stats.add(pathCategory(path));
             if (path.startsWith("data/") && path.endsWith(".nbt") && np.contains("/structure/")) {

@@ -49,7 +49,8 @@ full run; "loads" does not mean every feature was played through.
 
 - Forge play-phase `EventNetworkChannel` payloads use negotiated NeoForge payload IDs and dispatch to Forge listeners on the network thread. Forge login query channels and custom version predicates are not translated.
 - The forward layer adapts the old renderer lookup and string-valued skin keys, and preserves which capability overload a mod called. A successful world smoke test does not verify every render hook, packet path, or gameplay feature.
-- ParCool x TACZ Crawl Fix 1.0.3 fails with native ParCool 3.3.1.0 and TaCZ 1.2.0: the NeoForge ParCool jar moved `Parkourability`, and the TaCZ crawl tick mixin requires a different event descriptor. Loading without TaCZ does not exercise the integration.
+- Crawl Fix 1.0.3 reaches a world with integration enabled using original Forge ParCool 3.3.1.0 and native NeoForge TaCZ 1.2.0-hotfix. The hold callback no longer needs the unused legacy tick argument, and ParCool appends `ROLLING` and `VAULTING` before the pose codec builds its lookup (both round-tripped in a real client). Actual crawl input was not exercised. Native ParCool moved `Parkourability`; duplicate HUD registration and missing Patchouli guide data remain in the tested legacy combination.
+- Extra Gore 5.4 and original Forge Bookling Gear 3.16.4 reach a world and save on NeoForge 21.1.267. The forward layer migrates custom vertex elements, sprite metadata, the legacy fog overload, and combat prediction; a narrow adapter reconnects Extra Gore's vanilla terrain and shader warmup callbacks. Its blood atlas loaded and a damage command completed in the isolated client, but particle appearance was not confirmed and the old chunk model-data lookup remains unsupported.
 
 ## What happens to a mod
 

@@ -3853,6 +3853,15 @@
    "notes": "Automated check 0.4.9: translates offline and everything it uses exists (72 classes). The game was not started: this only shows the jar translates, not that it works."
   },
   {
+   "name": "Bookling Gear",
+   "version": "3.16.4",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267: original Forge build loaded with Extra Gore 5.4 and saved a world. Configuration GUI was not exercised."
+  },
+  {
    "name": "Bookshelf",
    "version": "2.3.590",
    "mc": "1.12.2",
@@ -9267,6 +9276,15 @@
    "date": "2026-11-08",
    "status": "fails",
    "notes": "Automated check: needs code from another mod or API that is not available or does not match: com.refinedmods.refinedstorage.item.blockitem.BaseBlockItem.appendHoverText."
+  },
+  {
+   "name": "Extra Gore",
+   "version": "5.4",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267: blood atlas loaded, a damage command completed, and the world saved with original Bookling Gear 3.16.4. Particle appearance was not verified; legacy chunk model-data lookup remains unsupported."
   },
   {
    "name": "Extra Planets",
@@ -19671,13 +19689,22 @@
    "notes": "Automated check: needs Minecraft or Forge features the layer does not have yet: net.minecraft.world.item.crafting.Recipe.getId, tictim.paraglider.client.screen.BargainScreen.renderDirtBackground, tictim.paraglider.client.screen.StaminaWheelSettingScreen.renderDirtBackground."
   },
   {
+   "name": "ParCool!",
+   "version": "3.3.1.0",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267: ROLLING and VAULTING round-tripped through the native pose codec; world saved with Crawl Fix. Duplicate HUD registration and missing Patchouli guide data remain."
+  },
+  {
    "name": "ParCool x TACZ Crawl Fix",
    "version": "1.0.3",
    "mc": "1.20.1",
    "source": "client",
    "date": "2026-11-24",
-   "status": "crashes",
-   "notes": "NeoForge 21.1.267: missing Parkourability and incompatible crawl tick injection with native ParCool 3.3.1.0 and TaCZ 1.2.0. World entry without TaCZ only exercises the inactive path."
+   "status": "loads",
+   "notes": "NeoForge 21.1.267: original Forge ParCool 3.3.1.0 and native TaCZ 1.2.0-hotfix enable the integration and save a world. The native hold callback applies; crawl input behavior was not tested. Native ParCool moved the required Parkourability class."
   },
   {
    "name": "Particle Culling",

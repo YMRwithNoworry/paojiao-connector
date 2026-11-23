@@ -52,7 +52,7 @@ public final class CompatBufferBuilder implements VertexConsumer {
         real = tesselator != null ? tesselator.begin(mode, format) : new BufferBuilder(own, mode, format);
     }
 
-    public boolean isBuilding() {
+    public boolean building() {
         return real != null;
     }
 
@@ -62,6 +62,10 @@ public final class CompatBufferBuilder implements VertexConsumer {
         if (b == null) throw new IllegalStateException("BufferBuilder not started");
         real = null;
         return b.build();
+    }
+
+    public MeshData endOrDiscard() {
+        return end();
     }
 
     public void discard() {

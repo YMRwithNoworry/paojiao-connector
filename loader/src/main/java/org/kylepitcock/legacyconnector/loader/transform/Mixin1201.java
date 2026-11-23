@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.kylepitcock.legacyconnector.loader.transform.compat.CrawlKeyMixin1201;
+import org.kylepitcock.legacyconnector.loader.transform.compat.ExtraGoreRenderMixin1201;
 import org.kylepitcock.legacyconnector.loader.transform.compat.GunHudOverlayMixin1201;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
@@ -40,6 +42,7 @@ final class Mixin1201 {
     static final class Stats {
         int mixinClasses;
         int stringsMoved;
+        int adapters;
         int requireRemoved;
         int localsRelaxed;
         final List<String> dropped = new ArrayList<>();
@@ -47,7 +50,7 @@ final class Mixin1201 {
         final Set<String> droppedClasses = new HashSet<>();
 
         String summary() {
-            return mixinClasses + " mixin class(es), " + stringsMoved + " annotation name(s) moved to 1.21.1, " + requireRemoved + " injector requirement(s) relaxed, " + localsRelaxed + " local capture(s) set to FAILSOFT (a vanilla method whose locals changed skips that injection with a Mixin warning naming the mod's mixin), " + dropped.size()
+            return mixinClasses + " mixin class(es), " + stringsMoved + " annotation name(s) moved to 1.21.1, " + adapters + " callback adaptation(s), " + requireRemoved + " injector requirement(s) relaxed, " + localsRelaxed + " local capture(s) set to FAILSOFT (a vanilla method whose locals changed skips that injection with a Mixin warning naming the mod's mixin), " + dropped.size()
                     + " mixin(s) dropped (target missing in 1.21.1)";
         }
     }
@@ -87,6 +90,9 @@ final class Mixin1201 {
             String target = targets.getFirst();
             st.stringsMoved += ChatMixin1201.apply(node, target);
             st.stringsMoved += GunHudOverlayMixin1201.apply(node, target);
+            st.adapters += ExtraGoreRenderMixin1201.apply(node, target);
+            st.adapters += CrawlKeyMixin1201.apply(node, target);
+            st.adapters += PoseEnumMixin1201.apply(node, target);
         }
         String shadow = missingShadow(node, targets, h);
         if (shadow != null) {

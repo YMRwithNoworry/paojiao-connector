@@ -18,6 +18,8 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -26,6 +28,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -313,6 +316,36 @@ public final class ApiCompat {
     public static void tabAccept(net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent event, java.util.function.Supplier<? extends net.minecraft.world.level.ItemLike> item,
                                  net.minecraft.world.item.CreativeModeTab.TabVisibility visibility) {
         event.accept(new ItemStack(item.get()), visibility);
+    }
+
+    /** The old pure armor calculation has neither the victim nor the weapon's enchantment context. */
+    public static float damageAfterAbsorb(float damage, float armor, float toughness) {
+        float reduction = Mth.clamp(armor - damage / (2.0F + toughness / 4.0F), armor * 0.2F, 20.0F);
+        return damage * (1.0F - reduction / 25.0F);
+    }
+
+    /** Legacy protection queries can run on the client with only the item stacks and damage source. */
+    public static int damageProtection(Iterable<ItemStack> items, DamageSource source) {
+        int protection = 0;
+        boolean vanillaApplies = !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
+        for (ItemStack stack : items) {
+            if (stack.isEmpty()) continue;
+            for (var entry : stack.getEnchantments().entrySet()) {
+                var key = entry.getKey().unwrapKey().orElse(null);
+                if (key == null) continue;
+                var legacy = LegacyEnchantments.REGISTRY.get(key.location());
+                int level = entry.getIntValue();
+                if (legacy != null) protection += legacy.getDamageProtection(level, source);
+                else if (vanillaApplies) {
+                    if (key.equals(Enchantments.PROTECTION)) protection += level;
+                    else if (key.equals(Enchantments.FIRE_PROTECTION) && source.is(DamageTypeTags.IS_FIRE)
+                            || key.equals(Enchantments.BLAST_PROTECTION) && source.is(DamageTypeTags.IS_EXPLOSION)
+                            || key.equals(Enchantments.PROJECTILE_PROTECTION) && source.is(DamageTypeTags.IS_PROJECTILE)) protection += 2 * level;
+                    else if (key.equals(Enchantments.FEATHER_FALLING) && source.is(DamageTypeTags.IS_FALL)) protection += 3 * level;
+                }
+            }
+        }
+        return protection;
     }
 
     /** {@code EnchantmentHelper.getDamageBonus(stack, mobType)}: sharpness, smite and bane of arthropods as 1.20.1 computed them. */

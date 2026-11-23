@@ -378,6 +378,7 @@ public final class Forge1201Transformer {
             palladiumPowersScreenChanges += palladiumPowersScreenChange;
             int palladiumSelectionListChange = PalladiumSelectionLists1201.apply(node);
             palladiumSelectionListChanges += palladiumSelectionListChange;
+            int previousMixinAdapters = mixinStats.adapters;
             Mixin1201.apply(node, srg, hierarchy, Mc1201Tables.get(), mixinStats);
             int settingsCallbacks = ClientSettingsMixin1201.apply(node);
             if (settingsCallbacks > 0) result.notes.add("Client settings Mixin callbacks adapted to the 1.21.1 ClientInformation record: " + settingsCallbacks);
@@ -389,7 +390,8 @@ public final class Forge1201Transformer {
                     + palladiumRendererRotationChange + palladiumRenderLayerChange
                     + palladiumPlayerSkinFetcherChange + palladiumCommandFunctionChange
                     + palladiumFlightHandlerChange + palladiumCustomProjectileChange
-                    + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange + settingsCallbacks);
+                    + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange + settingsCallbacks
+                    + mixinStats.adapters - previousMixinAdapters);
         }
         if (registeredArmorChanges > 0) {
             result.notes.add("Legacy armor material constants adapted to native registered holders: " + registeredArmorChanges + " reads");

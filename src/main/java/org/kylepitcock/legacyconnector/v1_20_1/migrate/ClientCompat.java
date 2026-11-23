@@ -151,6 +151,17 @@ public final class ClientCompat {
         }
     }
 
+    public static PoseStack poseFromModelView(Matrix4f modelView) {
+        var pose = new PoseStack();
+        pose.mulPose(modelView);
+        return pose;
+    }
+
+    public static void renderDirtBackground(net.minecraft.client.gui.screens.Screen screen, net.minecraft.client.gui.GuiGraphics graphics) {
+        net.minecraft.client.gui.screens.Screen.renderMenuBackgroundTexture(graphics,
+                net.minecraft.client.gui.screens.Screen.MENU_BACKGROUND, 0, 0, 0, 0, screen.width, screen.height);
+    }
+
     /** {@code Screen.renderBackground(GuiGraphics)}: 1.21.1's screens draw their background themselves before {@code render}. */
     public static void renderBackground(net.minecraft.client.gui.screens.Screen screen, net.minecraft.client.gui.GuiGraphics graphics) {
     }
