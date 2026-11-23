@@ -1,5 +1,7 @@
 package org.kylepitcock.legacyconnector.v1_20_1.migrate;
 
+import java.util.HashMap;
+import java.util.Map;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -9,9 +11,16 @@ import net.minecraft.client.gui.components.MultiLineLabel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelDataManager;
+import org.kylepitcock.legacyconnector.mixin.ModelDataManagerAccess;
 
 /**
  * Client-side signature changes of Minecraft 1.20.1 to 1.21.1 (see {@code mc-calls.tsv}, {@code mc-fields.tsv}): the player skin record, nine-slice blits that
@@ -24,6 +33,22 @@ public final class MiddleClientCompat {
     /** The old User accessor built a profile from the session identity without contacting the profile service. */
     public static com.mojang.authlib.GameProfile getGameProfile(net.minecraft.client.User user) {
         return new com.mojang.authlib.GameProfile(user.getProfileId(), user.getName());
+    }
+
+    /** Forge exposed one map per chunk; NeoForge keys its cache by vertical section and packed position. */
+    public static Map<BlockPos, ModelData> getChunkModelData(ModelDataManager manager, ChunkPos chunk) {
+        Level level = ((ModelDataManagerAccess) manager).legacyconnector$level();
+        if (!level.isClientSide()) throw new IllegalArgumentException("Cannot request model data for server level");
+        Map<BlockPos, ModelData> data = null;
+        for (int y = level.getMinSection(), max = level.getMaxSection(); y < max; y++) {
+            var section = manager.getAt(SectionPos.of(chunk.x, y, chunk.z));
+            if (section.isEmpty()) continue;
+            if (data == null) data = new HashMap<>(section.size());
+            for (var entry : section.long2ObjectEntrySet()) {
+                data.put(BlockPos.of(entry.getLongKey()), entry.getValue());
+            }
+        }
+        return data == null ? Map.of() : data;
     }
 
     // ------------------------------------------------------------------ player skins (PlayerSkin record)

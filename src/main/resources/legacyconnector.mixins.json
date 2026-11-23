@@ -52,6 +52,7 @@
     "Am2PlayerModelMixin",
     "ClientLevelSkyColorMixin",
     "ClientLevelHorizonB173Mixin",
+    "ModelDataManagerAccess",
     "MinecraftAttackMixin",
     "MultiPlayerGameModeMixin",
     "OptionsScreenLegacySettingsMixin",

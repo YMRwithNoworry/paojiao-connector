@@ -563,6 +563,7 @@ com/mojang/blaze3d/vertex/VertexFormatElement	<init>	(ILcom/mojang/blaze3d/verte
 net/minecraft/client/renderer/texture/SpriteContents	<init>	(Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/client/resources/metadata/animation/FrameSize;Lcom/mojang/blaze3d/platform/NativeImage;Lnet/minecraft/client/resources/metadata/animation/AnimationMetadataSection;)V	MiddleClientCompat	newSpriteContents
 com/mojang/blaze3d/vertex/VertexConsumer	putBulkData	(Lcom/mojang/blaze3d/vertex/PoseStack$Pose;Lnet/minecraft/client/renderer/block/model/BakedQuad;FFFII)V	MiddleClientCompat	putBulkData
 com/mojang/blaze3d/vertex/VertexFormatElement$Type	getSize	()I	MiddleClientCompat	vertexElementTypeSize
+net/neoforged/neoforge/client/model/data/ModelDataManager	getAt	(Lnet/minecraft/world/level/ChunkPos;)Ljava/util/Map;	MiddleClientCompat	getChunkModelData
 net/minecraft/client/multiplayer/MultiPlayerGameMode	getPickRange	()F	MiddleClientCompat	getPickRange
 net/minecraft/client/gui/screens/inventory/InventoryScreen	renderEntityInInventoryFollowsMouse	(Lnet/minecraft/client/gui/GuiGraphics;IIIFFLnet/minecraft/world/entity/LivingEntity;)V	MiddleClientCompat	renderEntityInInventoryFollowsMouse
 net/minecraft/client/resources/DefaultPlayerSkin	getDefaultSkin	()Lnet/minecraft/resources/ResourceLocation;	MiddleClientCompat	getDefaultSkin

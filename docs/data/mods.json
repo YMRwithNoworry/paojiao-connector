@@ -9284,7 +9284,7 @@
    "source": "client",
    "date": "2026-11-24",
    "status": "partial",
-   "notes": "NeoForge 21.1.267: blood atlas loaded, a damage command completed, and the world saved with original Bookling Gear 3.16.4. Particle appearance was not verified; legacy chunk model-data lookup remains unsupported."
+   "notes": "NeoForge 21.1.267: blood atlas loaded, chunk model-data lookup translated, a damage command completed, and the world saved with original Bookling Gear 3.16.4. Particle appearance was not verified."
   },
   {
    "name": "Extra Planets",
@@ -11067,7 +11067,7 @@
    "source": "client",
    "date": "2026-11-24",
    "status": "partial",
-   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached with native GeckoLib 4.9.4; legacy MolangParser mixin target missing."
+   "notes": "NeoForge 21.1.267: original Forge build reached the main menu with GeckoLib 4.9.4, but the legacy MolangParser mixin target is missing. The upstream NeoForge 1.21.1 build booted and saved a combined world with Sodium 0.6.13; FPS was not benchmarked."
   },
   {
    "name": "GeckoLib",
