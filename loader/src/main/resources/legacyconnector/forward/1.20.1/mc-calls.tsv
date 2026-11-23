@@ -610,6 +610,7 @@ net/minecraft/core/particles/BlockParticleOption	codec	(Lnet/minecraft/core/part
 net/minecraft/core/particles/ItemParticleOption	codec	(Lnet/minecraft/core/particles/ParticleType;)Lcom/mojang/serialization/Codec;	RoundCompat	itemParticleCodec	(Lnet/minecraft/core/particles/ParticleType;)Lcom/mojang/serialization/Codec;
 net/minecraft/world/entity/animal/frog/Frog	getVariant	()Lnet/minecraft/world/entity/animal/FrogVariant;	RoundCompat	frogVariant	-
 net/minecraft/world/entity/AreaEffectCloud	setFixedColor	(I)V	RoundCompat	setFixedColor	-
+net/minecraft/world/item/crafting/SimpleCraftingRecipeSerializer	<init>	(Lorg/kylepitcock/legacyconnector/v1_20_1/migrate/LegacyCraftingFactory;)V@special	=args	RoundCompat.craftingFactory@0	(Lnet/minecraft/world/item/crafting/SimpleCraftingRecipeSerializer$Factory;)V
 net/minecraft/world/item/crafting/SimpleCraftingRecipeSerializer	<init>	(Lorg/kylepitcock/legacyconnector/v1_20_1/migrate/LegacyCraftingFactory;)V	RoundCompat	newCraftingSerializer	-
 net/minecraft/world/level/storage/loot/predicates/LootItemConditions	orConditions	([Ljava/util/function/Predicate;)Ljava/util/function/Predicate;	RoundCompat	orConditions	-
 net/minecraft/world/level/storage/loot/predicates/LootItemConditions	andConditions	([Ljava/util/function/Predicate;)Ljava/util/function/Predicate;	RoundCompat	andConditions	-

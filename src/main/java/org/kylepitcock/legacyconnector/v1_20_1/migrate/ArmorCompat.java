@@ -25,6 +25,7 @@ public final class ArmorCompat {
 
     public static Holder<ArmorMaterial> holder(LegacyArmorMaterial material) {
         if (material instanceof LegacyArmorMaterials v) return v.holder;
+        if (material instanceof Wrapped wrapped) return wrapped.holder();
         return CACHE.computeIfAbsent(material, ArmorCompat::build);
     }
 
@@ -53,7 +54,12 @@ public final class ArmorCompat {
         LegacyArmorMaterial back = BACK.get(value);
         if (back != null) return back;
         for (LegacyArmorMaterials v : LegacyArmorMaterials.values()) if (v.holder.value() == value) return v;
-        return new Wrapped(value, h.unwrapKey().map(k -> k.location().getPath()).orElse("unknown"));
+        return new Wrapped(h, h.unwrapKey().map(k -> k.location().getPath()).orElse("unknown"), 0);
+    }
+
+    /** Views a native registered material through the legacy API without replacing its holder. */
+    public static LegacyArmorMaterial registeredMaterial(Holder<ArmorMaterial> holder, int durabilityMultiplier) {
+        return new Wrapped(holder, holder.unwrapKey().map(k -> k.location().toString()).orElse("unknown"), durabilityMultiplier);
     }
 
     /** {@code ArmorItem.getEquipSound()}. */
@@ -67,30 +73,34 @@ public final class ArmorCompat {
     }
 
     /** A 1.21.1 material seen through the 1.20.1 interface. */
-    private record Wrapped(ArmorMaterial m, String name) implements LegacyArmorMaterial {
+    private record Wrapped(Holder<ArmorMaterial> holder, String name, int durabilityMultiplier) implements LegacyArmorMaterial {
+        private ArmorMaterial material() {
+            return holder.value();
+        }
+
         @Override
         public int getDurabilityForType(ArmorItem.Type type) {
-            return 0;
+            return type.getDurability(durabilityMultiplier);
         }
 
         @Override
         public int getDefenseForType(ArmorItem.Type type) {
-            return m.getDefense(type);
+            return material().getDefense(type);
         }
 
         @Override
         public int getEnchantmentValue() {
-            return m.enchantmentValue();
+            return material().enchantmentValue();
         }
 
         @Override
         public SoundEvent getEquipSound() {
-            return m.equipSound().value();
+            return material().equipSound().value();
         }
 
         @Override
         public net.minecraft.world.item.crafting.Ingredient getRepairIngredient() {
-            return m.repairIngredient().get();
+            return material().repairIngredient().get();
         }
 
         @Override
@@ -100,12 +110,12 @@ public final class ArmorCompat {
 
         @Override
         public float getToughness() {
-            return m.toughness();
+            return material().toughness();
         }
 
         @Override
         public float getKnockbackResistance() {
-            return m.knockbackResistance();
+            return material().knockbackResistance();
         }
     }
 }

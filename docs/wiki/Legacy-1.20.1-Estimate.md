@@ -230,6 +230,8 @@ recomputed (`Mc1201Hierarchy.frameWriter`, mod classes plus the 1.21.1 class tre
 
 Helpers: `ItemStackNbt` (NBT over `CUSTOM_DATA` plus Damage, display, Enchantments, BlockEntityTag... components), `HolderCompat`, `VertexCompat` and
 `CompatBufferBuilder` (`BufferBuilder` is renamed to it; `Tesselator.getBuilder/end`), `MiscCompat`, `RecipeCompat`, `BridgeHelpers`, `ClientCompat`.
+`RecipeCompat` also unwraps recipe manager results and preserves existing holder IDs when legacy code filters the collection. Frame computation can use class headers from
+native dependencies in `mods/` without loading their classes; their hashes are included in the 1.20.1 translation cache key.
 Measured with `./gradlew gap1201 -Pgap.translate=true` (jars go through the real transformer; 248 Forge 1.20.1 jars of `test-mods4`), Minecraft symbols still
 unresolved, distinct/jar occurrences: before (groundwork, `ResourceLocation` factories only) classes 612/1668, methods 1792/9210, fields 526/2417; after
 classes 610/1610, methods 1393/4700, fields 291/558. `./gradlew verify1201 -PverifyDir=<-Pgap.translated.dir>` links the translated classes with the JVM verifier:

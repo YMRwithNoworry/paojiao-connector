@@ -39,6 +39,8 @@ import org.kylepitcock.legacyconnector.loader.shim.ShimIndex;
 import org.kylepitcock.legacyconnector.loader.synth.SynthDemand;
 import org.kylepitcock.legacyconnector.loader.synth.SynthJarBuilder;
 import org.kylepitcock.legacyconnector.loader.transform.LegacyJarTransformer;
+import org.kylepitcock.legacyconnector.loader.transform.Mc1201Hierarchy;
+import org.objectweb.asm.ClassReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -402,7 +404,9 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
             }
             Map<LegacyVersion, Set<String>> bundledElsewhere = classesOfOtherVersions(legacy);
             transformer.bundledByOtherVersions(bundledElsewhere);
-            Map<LegacyVersion, byte[]> modSet = modSetDigests(legacy, bridges, crossVersion, bundledElsewhere);
+            List<Path> forgeFrameJars = loading.stream().anyMatch(j -> j.version == LegacyVersion.V1_20_1)
+                    ? forgeFrameJars(modsDir, legacy) : List.of();
+            Map<LegacyVersion, byte[]> modSet = modSetDigests(legacy, bridges, crossVersion, bundledElsewhere, forgeFrameJars);
             Map<LegacyVersion, Map<String, ClassInfo>> peers = new EnumMap<>(LegacyVersion.class);
             Map<LegacyVersion, SynthDemand> demand = new EnumMap<>(LegacyVersion.class);
             List<RiskyMods.Entry> risky = new ArrayList<>();
@@ -412,6 +416,7 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
                 Path cached = cacheDir.resolve(cacheName(jar, modSet.get(jar.version)));
                 if (!Files.exists(cached) || !Files.exists(cached.resolveSibling(cached.getFileName() + ".synth.txt"))) uncached++;
             }
+            if (uncached > 0 && !forgeFrameJars.isEmpty()) transformer.forgeFrameDependencies(readFrameHeaders(forgeFrameJars));
             TranslationProgress progress = new TranslationProgress(uncached);
             // The jars that are not cached are independent of each other once all classes have been scanned: translate them in parallel.
             TranslationPool pool = new TranslationPool(transformer, TranslationPool.defaultThreads(uncached));
@@ -708,8 +713,49 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
         return out;
     }
 
+    private static List<Path> forgeFrameJars(Path modsDir, List<LegacyJar> legacy) throws IOException {
+        Set<Path> excluded = new HashSet<>();
+        for (LegacyJar jar : legacy) {
+            excluded.add(jar.path.toAbsolutePath().normalize());
+            excluded.add(jar.existing().toAbsolutePath().normalize());
+        }
+        if (!Files.isDirectory(modsDir)) return List.of();
+        try (Stream<Path> paths = Files.list(modsDir)) {
+            return paths.filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar"))
+                    .filter(p -> !excluded.contains(p.toAbsolutePath().normalize()))
+                    .sorted().toList();
+        }
+    }
+
+    /** Read only class headers: the native mods are not on the locator's class loader yet. */
+    static Map<String, Mc1201Hierarchy.ClassHeader> readFrameHeaders(List<Path> jars) {
+        Map<String, Mc1201Hierarchy.ClassHeader> headers = new HashMap<>();
+        for (Path jar : jars) {
+            try (ZipFile zip = new ZipFile(jar.toFile())) {
+                var entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (name.startsWith("META-INF/") || !name.endsWith(".class") || name.equals("module-info.class")) continue;
+                    try (InputStream input = zip.getInputStream(entry)) {
+                        ClassReader reader = new ClassReader(input);
+                        headers.putIfAbsent(reader.getClassName(), new Mc1201Hierarchy.ClassHeader(
+                                reader.getSuperName(), List.of(reader.getInterfaces())));
+                    } catch (IllegalArgumentException e) {
+                        LOG.debug("Could not inspect class header {} in {}", name, jar, e);
+                    }
+                }
+            } catch (IOException e) {
+                LOG.debug("Could not inspect class headers in {}", jar, e);
+            }
+        }
+        return headers;
+    }
+
     private static Map<LegacyVersion, byte[]> modSetDigests(List<LegacyJar> legacy, List<LibraryBridges.Bridge> bridges,
-            org.kylepitcock.legacyconnector.loader.transform.CrossVersionPackages crossVersion, Map<LegacyVersion, Set<String>> bundledElsewhere) throws IOException {
+            org.kylepitcock.legacyconnector.loader.transform.CrossVersionPackages crossVersion, Map<LegacyVersion, Set<String>> bundledElsewhere,
+            List<Path> forgeFrameJars) throws IOException {
         Map<LegacyVersion, MessageDigest> digests = new EnumMap<>(LegacyVersion.class);
         for (LegacyJar jar : legacy) {
             MessageDigest md = digests.computeIfAbsent(jar.version, v -> SplitPackageResolver.sha256());
@@ -722,6 +768,8 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
         digests.forEach((v, md) -> md.update(shared));
         // the classes of the other versions' jars decide which optional references are stubbed as absent
         digests.forEach((v, md) -> md.update(Integer.toString(bundledElsewhere.getOrDefault(v, Set.of()).hashCode()).getBytes(StandardCharsets.UTF_8)));
+        MessageDigest forge = digests.get(LegacyVersion.V1_20_1);
+        if (forge != null) for (Path jar : forgeFrameJars) forge.update(fileDigest(jar));
         Map<LegacyVersion, byte[]> out = new EnumMap<>(LegacyVersion.class);
         digests.forEach((v, md) -> out.put(v, md.digest()));
         return out;

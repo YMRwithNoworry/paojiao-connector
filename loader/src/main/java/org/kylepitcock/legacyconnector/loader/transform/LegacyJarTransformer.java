@@ -38,12 +38,18 @@ import org.objectweb.asm.tree.ClassNode;
  */
 public final class LegacyJarTransformer {
     /** Bump whenever the output of this class changes, to invalidate caches. */
-    public static final int TRANSFORMER_VERSION = 92;
+    public static final int TRANSFORMER_VERSION = 93;
     /** Names the legacy coremod plugin class of a translated jar. */
     public static final String COREMOD_RESOURCE = "META-INF/legacyconnector-coremod.txt";
 
     private final ShimIndex shim;
     private final ClassLoader libraries;
+    private Map<String, Mc1201Hierarchy.ClassHeader> forgeFrameDependencies = Map.of();
+
+    public LegacyJarTransformer forgeFrameDependencies(Map<String, Mc1201Hierarchy.ClassHeader> dependencies) {
+        forgeFrameDependencies = Map.copyOf(dependencies);
+        return this;
+    }
 
     /** Lower-cased ids of the legacy mods being loaded, for {@code @Optional} stripping. */
     private java.util.Set<String> presentMods = java.util.Set.of();
@@ -388,7 +394,7 @@ public final class LegacyJarTransformer {
 
     /** @param peers classes of the other legacy jars of the same version (see {@link #scan}), by name */
     public Result transform(LegacyJar jar, Path output, Map<String, ClassInfo> peers) throws IOException {
-        if (jar.version == LegacyVersion.V1_20_1) return new Forge1201Transformer(shim).transform(jar, output);
+        if (jar.version == LegacyVersion.V1_20_1) return new Forge1201Transformer(shim).frameDependencies(forgeFrameDependencies).transform(jar, output);
         Result result = new Result();
         LegacyVersion version = jar.version;
         LegacyRemapper remapper = remapperFor(version, result.demand);

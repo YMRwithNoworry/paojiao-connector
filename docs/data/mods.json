@@ -1995,6 +1995,15 @@
    "notes": "Automated check: translates offline and everything it uses exists (21 classes). The game was not started: this only shows the jar translates, not that it works."
   },
   {
+   "name": "Auto TACZ Refit",
+   "version": "1.0.3",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered; old checkbox and selection-list fields are still stand-ins."
+  },
+  {
    "name": "Auto Third Person",
    "version": "2.0.3",
    "mc": "1.7.10",
@@ -3110,6 +3119,15 @@
    "notes": "Automated check 0.4.9: translates offline and everything it uses exists (6 classes). 1 minor feature(s) it uses are empty placeholders. The game was not started: this only shows the jar translates, not that it works."
   },
   {
+   "name": "Better Totem of Undying",
+   "version": "2.1.1",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
+  },
+  {
    "name": "BetterBuildersWands",
    "version": "0.13.3-GTNH",
    "mc": "1.7.10",
@@ -3126,6 +3144,15 @@
    "date": "2026-10-28",
    "status": "works",
    "notes": "Self-tested in the GT New Horizons server test: 4 items, 0 blocks, 0 entity types; every block placed and used, every item used, every entity spawned without errors."
+  },
+  {
+   "name": "BetterChat",
+   "version": "1.1",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
   },
   {
    "name": "Betterer Biomer Blender",
@@ -7597,6 +7624,15 @@
    "notes": "Automated client survey: 0 items, 0 blocks, 1 entity types; spawned 1/1 entity types; 1 error log lines"
   },
   {
+   "name": "DragonRise:Reforge",
+   "version": "1.5.1-release",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved with native Superb Warfare 0.8.9.2; two render mixins, outline shader, and one entity attribute registration remain broken."
+  },
+  {
    "name": "Drama Generator: Ruby Edition Splash",
    "version": "1.0.0",
    "mc": "1.7.10",
@@ -9682,6 +9718,15 @@
    "notes": "Automated check: needs Minecraft or Forge features the layer does not have yet: net.minecraft.world.entity.player.Player.triggerRecipeCrafted."
   },
   {
+   "name": "FastBoot",
+   "version": "1.2",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached; individual features not tested."
+  },
+  {
    "name": "Faster Ladder Climbing",
    "version": "0.1-146",
    "mc": "1.12.2",
@@ -10971,6 +11016,15 @@
    "notes": "Automated check: needs Minecraft or Forge features the layer does not have yet: net.minecraft.client.particle.ParticleRenderType.begin, net.minecraft.client.particle.ParticleRenderType.end, net.minecraft.world.item.crafting.ShapedRecipe$Serializer.fromJson, com.blamejared.crafttweaker.api.event.bus.ForgeEventBusWire, com.blamejared.crafttweaker.api.event.bus.IEventBus (+4 more)."
   },
   {
+   "name": "GD656Peek",
+   "version": "0.0.5-1.20.1-forge",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
+  },
+  {
    "name": "Gear Swap",
    "version": "1.2.3",
    "mc": "1.7.10",
@@ -10978,6 +11032,15 @@
    "date": "2026-11-23",
    "status": "loads",
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (37 classes). The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "GeckoBetterFPS",
+   "version": "1.0.2",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached with native GeckoLib 4.9.4; legacy MolangParser mixin target missing."
   },
   {
    "name": "GeckoLib",
@@ -12191,6 +12254,15 @@
    "date": "2026-11-23",
    "status": "loads",
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (556 classes). But 12 features it uses are empty placeholders, so large parts probably do nothing. The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "Hold W Boost",
+   "version": "1.0.0",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
   },
   {
    "name": "Holo Inventory",
@@ -18395,6 +18467,15 @@
    "notes": "Automated check 0.4.4: needs Minecraft or Forge features the layer does not have yet: net.minecraft.Util.getOrThrow, net.minecraft.client.gui.components.Button.setTooltipDelay, net.minecraft.client.gui.components.Checkbox.<init>, net.minecraft.client.gui.components.ImageButton.<init>, net.minecraft.client.gui.components.ImageButton.updateTooltip (+24 more)."
   },
   {
+   "name": "No F3 B",
+   "version": "1.0.2",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
+  },
+  {
    "name": "No LAN Cheating",
    "version": "v1.2",
    "mc": "1.12.2",
@@ -18411,6 +18492,15 @@
    "date": "2026-11-23",
    "status": "loads",
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (4 classes). The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "No Mining",
+   "version": "1.0.0",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
   },
   {
    "name": "No Mob Latency",
@@ -18672,6 +18762,15 @@
    "date": "2026-11-23",
    "status": "loads",
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (1362 classes). The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "NRG-雷达物品",
+   "version": "1.0.0-r10",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Personal Radar issued with /give; radar behavior not tested."
   },
   {
    "name": "NTM Fluid Converters",
@@ -19552,6 +19651,15 @@
    "date": "2026-11-08",
    "status": "fails",
    "notes": "Automated check: needs Minecraft or Forge features the layer does not have yet: net.minecraft.world.item.crafting.Recipe.getId, tictim.paraglider.client.screen.BargainScreen.renderDirtBackground, tictim.paraglider.client.screen.StaminaWheelSettingScreen.renderDirtBackground."
+  },
+  {
+   "name": "ParCool x TACZ Crawl Fix",
+   "version": "1.0.3",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered; integration inactive because ParCool was not installed."
   },
   {
    "name": "Particle Culling",
@@ -20724,6 +20832,15 @@
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (618 classes). The game was not started: this only shows the jar translates, not that it works."
   },
   {
+   "name": "Quick Chat",
+   "version": "1.5.2",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
+  },
+  {
    "name": "Quit",
    "version": "1.0.1",
    "mc": "1.7.10",
@@ -21152,6 +21269,15 @@
    "date": "2026-11-08",
    "status": "loads",
    "notes": "Automated check 0.4.9: translates offline and everything it uses exists (78 classes). The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "Redirector",
+   "version": "5.0.0",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached; individual features not tested."
   },
   {
    "name": "RedLogic",
@@ -22608,6 +22734,15 @@
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (23 classes). The game was not started: this only shows the jar translates, not that it works."
   },
   {
+   "name": "Sign Button",
+   "version": "2.5.4",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Oak sign button placed with /setblock; activation not tested."
+  },
+  {
    "name": "Signpost",
    "version": "1.08.3",
    "mc": "1.12.2",
@@ -23056,6 +23191,15 @@
    "date": "2026-11-08",
    "status": "fails",
    "notes": "Automated check: needs Minecraft or Forge features the layer does not have yet: net.minecraft.world.entity.ai.behavior.BehaviorUtils.lockGazeAndWalkToEachOther, net.neoforged.neoforge.common.util.BrainBuilder, legacyconnector.v1_20_1.net.minecraftforge.registries.ForgeRegistries$Keys.MEMORY_MODULE_TYPES, legacyconnector.v1_20_1.net.minecraftforge.registries.ForgeRegistries$Keys.SENSOR_TYPES."
+  },
+  {
+   "name": "Smooth Boot (Reloaded)",
+   "version": "0.0.4",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached; worker-count mixin was dropped."
   },
   {
    "name": "Smooth Third Person Camera (STPC)",
@@ -24100,6 +24244,42 @@
    "date": "2026-11-23",
    "status": "loads",
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (58 classes). But 17 features it uses are empty placeholders, so large parts probably do nothing. The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "TACZ Tactical Shop",
+   "version": "3.0.1",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "loads",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and saved; individual features not tested."
+  },
+  {
+   "name": "TaCZ: Presence",
+   "version": "1.4.1",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Native TaCZ combination: HUD injection descriptor mismatch; this run did not complete because another addon failed."
+  },
+  {
+   "name": "Tacz: UniDict",
+   "version": "2.0.5",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. World entered and recipes synchronized with native TaCZ; gameplay not tested."
+  },
+  {
+   "name": "taczai",
+   "version": "1.0-SNAPSHOT",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "fails",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Native TaCZ combination: static event subscriber rejected in client setup."
   },
   {
    "name": "Tails Legacy",
@@ -27633,6 +27813,15 @@
    "notes": "Self-tested in the 1.12.2 server self test (116 mods): 2 items, 0 blocks, 0 entity types; every block placed and used, every item used, every entity spawned without errors."
   },
   {
+   "name": "XXL Packets",
+   "version": "1.0.5",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached; old custom payload packet mixin was dropped."
+  },
+  {
    "name": "XyCraft: Core",
    "version": "0.6.22",
    "mc": "1.20.1",
@@ -27937,6 +28126,24 @@
    "date": "2026-11-23",
    "status": "loads",
    "notes": "Automated check 0.4.14: translates offline and everything it uses exists (1426 classes). The game was not started: this only shows the jar translates, not that it works."
+  },
+  {
+   "name": "命令法杖",
+   "version": "1.1.0",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Content registered and world entered; item behavior not tested."
+  },
+  {
+   "name": "模组规划：VR 观战报名与开赛切换模组规划 一句",
+   "version": "1.0.0-r33",
+   "mc": "1.20.1",
+   "source": "client",
+   "date": "2026-11-24",
+   "status": "partial",
+   "notes": "NeoForge 21.1.267 with Legacy Connector. Main menu reached; old CommandFunction.getId call is still a stand-in."
   },
   {
    "name": "�4Name Pain",

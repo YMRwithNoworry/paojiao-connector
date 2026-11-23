@@ -31,6 +31,14 @@ public final class Mc1201Hierarchy {
     private static volatile Map<String, McClass> mc;
 
     private final Map<String, ClassNode> mod = new HashMap<>();
+    private Map<String, ClassHeader> frameDependencies = Map.of();
+
+    public record ClassHeader(String superName, List<String> interfaces) {}
+
+    Mc1201Hierarchy frameDependencies(Map<String, ClassHeader> dependencies) {
+        frameDependencies = dependencies;
+        return this;
+    }
 
     /** Adds the classes of the jar being translated. */
     public Mc1201Hierarchy add(ClassNode node) {
@@ -155,25 +163,51 @@ public final class Mc1201Hierarchy {
 
     String commonSuperClass(String a, String b, java.util.function.Supplier<String> fallback) {
         if (a.equals(b)) return a;
-        boolean known = (mod.containsKey(a) || mc().containsKey(a)) && (mod.containsKey(b) || mc().containsKey(b));
-        if (!known) {
+        if (!knownFrameClass(a) || !knownFrameClass(b)) {
             try {
                 return fallback.get();
             } catch (RuntimeException | LinkageError e) {
                 return "java/lang/Object";
             }
         }
-        if (isSubclassOf(b, a)) return a;
-        if (isSubclassOf(a, b)) return b;
+        if (frameSubtype(b, a)) return a;
+        if (frameSubtype(a, b)) return b;
         String c = a;
         for (int guard = 0; guard < 64 && c != null; guard++) {
-            ClassNode n = mod.get(c);
-            String sup = n != null ? n.superName : (mc().containsKey(c) ? mc().get(c).superName() : null);
-            if (sup == null) break;
-            if (isSubclassOf(b, sup)) return sup;
-            c = sup;
+            ClassHeader header = frameHeader(c);
+            if (header == null || header.superName() == null) break;
+            c = header.superName();
+            if (frameSubtype(b, c)) return c;
         }
         return "java/lang/Object";
+    }
+
+    private boolean knownFrameClass(String name) {
+        return mod.containsKey(name) || mc().containsKey(name) || frameDependencies.containsKey(name);
+    }
+
+    private ClassHeader frameHeader(String name) {
+        ClassNode n = mod.get(name);
+        if (n != null) return new ClassHeader(n.superName, n.interfaces);
+        McClass c = mc().get(name);
+        if (c != null) return new ClassHeader(c.superName(), List.of(c.interfaces()));
+        return frameDependencies.get(name);
+    }
+
+    private boolean frameSubtype(String name, String ancestor) {
+        var pending = new java.util.ArrayDeque<String>();
+        var seen = new HashSet<String>();
+        pending.add(name);
+        while (!pending.isEmpty()) {
+            String current = pending.removeFirst();
+            if (!seen.add(current)) continue;
+            if (current.equals(ancestor)) return true;
+            ClassHeader header = frameHeader(current);
+            if (header == null) continue;
+            if (header.superName() != null) pending.add(header.superName());
+            pending.addAll(header.interfaces());
+        }
+        return false;
     }
 
     /** The owner itself and its Minecraft ancestors, nearest first (rule lookup for calls through a subclass of the declaring class). */

@@ -549,11 +549,12 @@ public final class RoundCompat {
     }
 
     /** {@code new SimpleCraftingRecipeSerializer(factory)}: the 1.21.1 factory takes the category only. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public static net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer newCraftingSerializer(LegacyCraftingFactory factory) {
-        return new net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer(
-                (net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer.Factory) category ->
-                        factory.create(UNKNOWN_RECIPE, (net.minecraft.world.item.crafting.CraftingBookCategory) category));
+    public static net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer<net.minecraft.world.item.crafting.CraftingRecipe> newCraftingSerializer(LegacyCraftingFactory factory) {
+        return new net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer<>(craftingFactory(factory));
+    }
+
+    public static net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer.Factory<net.minecraft.world.item.crafting.CraftingRecipe> craftingFactory(LegacyCraftingFactory factory) {
+        return category -> factory.create(UNKNOWN_RECIPE, category);
     }
 
     /** {@code LootItemConditions.orConditions(predicates)}: true when any predicate is. */

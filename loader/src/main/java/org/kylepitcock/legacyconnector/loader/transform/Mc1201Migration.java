@@ -375,7 +375,8 @@ final class Mc1201Migration {
                 }
                 if (call.name.equals("<init>")) {
                     TypeInsnNode made = call.getOpcode() == Opcodes.INVOKESPECIAL && !news.isEmpty() && news.peek().desc.equals(call.owner) ? news.pop() : null;
-                    Call rule = t.calls.get(call.owner + ".<init>" + call.desc);
+                    Call rule = made == null ? t.calls.get(call.owner + ".<init>" + call.desc + "@special") : null;
+                    if (rule == null) rule = t.calls.get(call.owner + ".<init>" + call.desc);
                     if (rule != null && rule.helper().startsWith("=")) {
                         inPlace(m, call, rule);
                         c.constructors++;

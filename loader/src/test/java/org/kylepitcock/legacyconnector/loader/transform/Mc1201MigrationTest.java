@@ -533,6 +533,26 @@ class Mc1201MigrationTest implements Opcodes {
     }
 
     @Test
+    void craftingSerializerSubclassKeepsSuperConstructorCall() {
+        String serializer = "net/minecraft/world/item/crafting/SimpleCraftingRecipeSerializer";
+        String legacy = "(L" + MIGRATE + "LegacyCraftingFactory;)V";
+        ClassNode type = cls("test/CustomSerializer", serializer);
+        MethodNode init = method(type, ACC_PUBLIC, "<init>", legacy);
+        init.maxLocals = 2;
+        init.instructions.add(new VarInsnNode(ALOAD, 0));
+        init.instructions.add(new VarInsnNode(ALOAD, 1));
+        init.instructions.add(new MethodInsnNode(INVOKESPECIAL, serializer, "<init>", legacy, false));
+        init.instructions.add(new InsnNode(RETURN));
+
+        assertEquals(1, apply(type).constructors);
+        MethodInsnNode call = find(init, serializer, "<init>");
+        assertNotNull(call);
+        assertEquals(INVOKESPECIAL, call.getOpcode());
+        assertEquals("(L" + serializer + "$Factory;)V", call.desc);
+        assertNotNull(find(init, MIGRATE + "RoundCompat", "craftingFactory"));
+    }
+
+    @Test
     void customRecipeDropsItsId() {
         String custom = "net/minecraft/world/item/crafting/CustomRecipe";
         String rl = "net/minecraft/resources/ResourceLocation";

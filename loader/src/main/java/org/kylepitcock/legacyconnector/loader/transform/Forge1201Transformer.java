@@ -32,6 +32,7 @@ import org.kylepitcock.legacyconnector.loader.mapping.SrgMojangTable;
 import org.kylepitcock.legacyconnector.loader.shim.ShimIndex;
 import org.kylepitcock.legacyconnector.loader.resource.DataConverter1201;
 import org.kylepitcock.legacyconnector.loader.resource.FunctionConverter1201;
+import org.kylepitcock.legacyconnector.loader.transform.compat.SuperbWarfareArmor1201;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
@@ -76,6 +77,12 @@ public final class Forge1201Transformer {
     private static final LegacyVersion VER = LegacyVersion.V1_20_1;
     /** Isolated library copies (side-by-side libraries): their packages are relocated, their mod ids replaced. */
     private SideBySide plan = SideBySide.current();
+    private Map<String, Mc1201Hierarchy.ClassHeader> frameDependencies = Map.of();
+
+    Forge1201Transformer frameDependencies(Map<String, Mc1201Hierarchy.ClassHeader> dependencies) {
+        frameDependencies = dependencies;
+        return this;
+    }
     /** Classes (original internal names) and lower-case mod ids of the jar being translated. */
     private Set<String> ownClasses = Set.of();
     private Set<String> ownIds = Set.of();
@@ -250,7 +257,7 @@ public final class Forge1201Transformer {
         int stringsMapped = 0;
         int rewrites = 0;
         List<ClassNode> nodes = new ArrayList<>();
-        Mc1201Hierarchy hierarchy = new Mc1201Hierarchy();
+        Mc1201Hierarchy hierarchy = new Mc1201Hierarchy().frameDependencies(frameDependencies);
         java.util.Set<String> serializable = SerialUids.serializable(classes);
         for (var e : classes.entrySet()) {
             ClassNode node = new ClassNode();
@@ -299,6 +306,8 @@ public final class Forge1201Transformer {
         int palladiumCustomProjectileChanges = 0;
         int palladiumCoreOverlayChanges = 0;
         int palladiumCoreLightningMixinChanges = 0;
+        int registeredArmorChanges = 0;
+        boolean adaptRegisteredArmor = SuperbWarfareArmor1201.accepts(ownIds, frameDependencies.keySet());
         for (ClassNode node : nodes) {
             if (PalladiumKubeJS1201.dropLegacyKubejsClass(node.name)) {
                 palladiumKubejsClassesDropped++;
@@ -341,6 +350,8 @@ public final class Forge1201Transformer {
             // The PalladiumCore adapter must see and retarget the original lookup before that generic pass.
             int palladiumPlayerSkinChange = PalladiumCorePlayerSkin1201.apply(node);
             palladiumPlayerSkinChanges += palladiumPlayerSkinChange;
+            int registeredArmorChange = adaptRegisteredArmor ? SuperbWarfareArmor1201.apply(node) : 0;
+            registeredArmorChanges += registeredArmorChange;
             Mc1201Migration.Counts changed = Mc1201Migration.apply(node, hierarchy);
             mc.add(changed);
             int palladiumFlightHandlerChange = PalladiumFlightHandler1201.apply(node);
@@ -381,7 +392,10 @@ public final class Forge1201Transformer {
                     + palladiumRendererRotationChange + palladiumRenderLayerChange + palladiumPlayerSkinChange
                     + palladiumPlayerSkinFetcherChange + palladiumCommandFunctionChange
                     + palladiumFlightHandlerChange + palladiumCustomProjectileChange
-                    + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange);
+                    + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange);
+        }
+        if (registeredArmorChanges > 0) {
+            result.notes.add("Legacy armor material constants adapted to native registered holders: " + registeredArmorChanges + " reads");
         }
         if (palladiumKubejsChanges > 0 || palladiumKubejsClassesDropped > 0) {
             result.notes.add("Palladium KubeJS 6 integration adapted for KubeJS 7: "
@@ -798,7 +812,7 @@ public final class Forge1201Transformer {
             Files.write(in, data);
             LegacyJar nested = LegacyJarInspector.inspect(in);
             if (nested == null || nested.version != LegacyVersion.V1_20_1) return data;
-            new Forge1201Transformer(shim).sideBySide(plan).transform(nested, out);
+            new Forge1201Transformer(shim).sideBySide(plan).frameDependencies(frameDependencies).transform(nested, out);
             result.notes.add("Translated nested " + path.substring(path.lastIndexOf('/') + 1));
             return Files.readAllBytes(out);
         } finally {
