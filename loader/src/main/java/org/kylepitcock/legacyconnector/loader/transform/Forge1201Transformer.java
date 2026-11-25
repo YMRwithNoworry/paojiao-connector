@@ -218,6 +218,8 @@ public final class Forge1201Transformer {
 
         @Override
         public String mapInvokeDynamicMethodName(String name, String descriptor) {
+            // ASM also uses this callback for constant-dynamic names, with a field descriptor.
+            if (descriptor.charAt(0) != '(') return name;
             // a lambda for a functional interface whose method was renamed (FriendlyByteBuf.Writer.accept is StreamEncoder.encode): the factory returns the interface
             String iface = Type.getReturnType(descriptor).getInternalName();
             String renamed = Mc1201Tables.get().renamedMember(iface, name, "*");

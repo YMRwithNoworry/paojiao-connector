@@ -6,13 +6,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.kylepitcock.legacyconnector.loader.LegacyJar;
+import org.kylepitcock.legacyconnector.loader.LegacyVersion;
 import org.kylepitcock.legacyconnector.loader.shim.ShimIndex;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.ConstantDynamic;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnNode;
@@ -60,6 +72,45 @@ class Forge1201ApiTest {
         assertEquals(
                 "dev/latvian/mods/kubejs/util/LogType",
                 transformer.mapClass("dev/latvian/mods/kubejs/util/LogType"));
+    }
+
+    @Test
+    void preservesDynamicConstantsInInvokeDynamicBootstrapArguments(@TempDir Path temp) throws Exception {
+        String owner = getClass().getPackageName().replace('.', '/') + "/DynamicConstantFixture";
+        var writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        writer.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, owner, null, "java/lang/Object", null);
+        var method = writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "message", "()Ljava/lang/String;", null, null);
+        var constant = new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/ConstantBootstraps", "explicitCast",
+                "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Object;)Ljava/lang/Object;", false);
+        var concat = new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/StringConcatFactory", "makeConcatWithConstants",
+                "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+        method.visitCode();
+        method.visitLdcInsn("Legacy");
+        method.visitInvokeDynamicInsn("makeConcatWithConstants", "(Ljava/lang/String;)Ljava/lang/String;", concat,
+                new ConstantDynamic("recipe", "Ljava/lang/String;", constant, "\u0001 Connector"));
+        method.visitInsn(Opcodes.ARETURN);
+        method.visitMaxs(0, 0);
+        method.visitEnd();
+        writer.visitEnd();
+
+        Path input = temp.resolve("fixture.jar");
+        Path output = temp.resolve("translated.jar");
+        String entryName = owner + ".class";
+        try (var jar = new JarOutputStream(Files.newOutputStream(input))) {
+            jar.putNextEntry(new JarEntry(entryName));
+            jar.write(writer.toByteArray());
+        }
+        LegacyJar legacy = new LegacyJar(input);
+        legacy.version = LegacyVersion.V1_20_1;
+        var result = new Forge1201Transformer(ShimIndex.empty()).transform(legacy, output);
+        try (var jar = new JarFile(output.toFile())) {
+            var entry = jar.getJarEntry(entryName);
+            assertTrue(entry != null, result.notes.toString());
+            try (var stream = jar.getInputStream(entry)) {
+                Class<?> translated = MethodHandles.lookup().defineClass(stream.readAllBytes());
+                assertEquals("Legacy Connector", translated.getMethod("message").invoke(null));
+            }
+        }
     }
 
     @Test

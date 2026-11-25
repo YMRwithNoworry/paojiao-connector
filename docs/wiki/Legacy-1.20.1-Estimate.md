@@ -225,7 +225,7 @@ recomputed (`Mc1201Hierarchy.frameWriter`, mod classes plus the 1.21.1 class tre
 |---|---|---|
 | Call redirect | `mc-calls.tsv` | call (or `NEW/DUP/INVOKESPECIAL` constructor) to a static helper; `=`, `=swap`, `=pop`, `=ret` change a call in place. Not applied when a mod class declares the method on the way up |
 | Field | `mc-fields.tsv` | `MobEffects.X`, `Attributes.X`, `GameEvent.X`... are `Holder`s (unwrapped), enchantments are `ResourceKey`s (looked up), loot tables are keys, removed fields come from helpers |
-| Rename | `mc-classes.tsv`, `mc-members.tsv` | class and member renames; also lambdas (`FriendlyByteBuf.Writer.accept` to `StreamEncoder.encode`) |
+| Rename | `mc-classes.tsv`, `mc-members.tsv` | Class and member renames, including lambda targets (`FriendlyByteBuf.Writer.accept` to `StreamEncoder.encode`). JVM dynamic constants keep their original names while their types and bootstrap references are remapped. |
 | Bridge method | `mc-bridges.tsv` | overridden method with a changed signature gets the 1.21.1-shaped method calling the mod's: `BlockEntity.load/saveAdditional/getUpdateTag`, `Block.use` to `useItemOn`, `defineSynchedData`, `Recipe.matches/assemble`, `appendHoverText`, `playerWillDestroy`, `Model.renderToBuffer`, `finalizeSpawn`... `super.` calls get the provider/builder from `MigrateContext` |
 
 Helpers: `ItemStackNbt` (NBT over `CUSTOM_DATA` plus Damage, display, Enchantments, BlockEntityTag... components), `HolderCompat`, `VertexCompat` and
