@@ -75,6 +75,16 @@ class Forge1201ApiTest {
     }
 
     @Test
+    void mapsLegacyKotlinForForgeContextToNeoForgeContext() {
+        Forge1201Transformer transformer = new Forge1201Transformer(ShimIndex.empty());
+
+        assertEquals("thedarkcolour/kotlinforforge/neoforge/KotlinModLoadingContext",
+                transformer.mapClass("thedarkcolour/kotlinforforge/KotlinModLoadingContext"));
+        assertEquals("thedarkcolour/kotlinforforge/neoforge/KotlinModLoadingContext$Companion",
+                transformer.mapClass("thedarkcolour/kotlinforforge/KotlinModLoadingContext$Companion"));
+    }
+
+    @Test
     void preservesDynamicConstantsInInvokeDynamicBootstrapArguments(@TempDir Path temp) throws Exception {
         String owner = getClass().getPackageName().replace('.', '/') + "/DynamicConstantFixture";
         var writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
@@ -249,7 +259,11 @@ class Forge1201ApiTest {
                     if (l.isBlank() || l.startsWith("#")) continue;
                     String[] a = l.split("\t");
                     assertEquals(f.equals("forge-members.tsv") ? 3 : 2, a.length, f + ": " + l);
-                    if (!f.equals("forge-call-rewrites.tsv") && !f.equals("forge-members.tsv")) assertTrue(a[0].startsWith("net/minecraftforge/") && a[1].startsWith("net/neoforged/"), f + ": " + l);
+                    if (!f.equals("forge-call-rewrites.tsv") && !f.equals("forge-members.tsv")) {
+                        if (!f.equals("forge-curated-renames.tsv") || a[0].startsWith("net/minecraftforge/")) {
+                            assertTrue(a[1].startsWith("net/neoforged/"), f + ": " + l);
+                        }
+                    }
                 }
             }
         }

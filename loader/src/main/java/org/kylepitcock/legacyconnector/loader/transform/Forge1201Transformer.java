@@ -152,7 +152,7 @@ public final class Forge1201Transformer {
         if (name.equals(KUBEJS6_CONSOLE) || name.startsWith(KUBEJS6_CONSOLE + "$")) {
             return KUBEJS7_CONSOLE + name.substring(KUBEJS6_CONSOLE.length());
         }
-        if (!name.startsWith("net/minecraftforge/")) return name;
+        if (!name.startsWith("net/minecraftforge/")) return classRenames.getOrDefault(name, name);
         String facade = LegacyVersion.V1_20_1.shimPrefix() + name;
         if (shim.contains(facade)) return facade;
         String direct = classRenames.get(name);

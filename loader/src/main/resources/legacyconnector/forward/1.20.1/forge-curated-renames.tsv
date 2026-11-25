@@ -48,6 +48,8 @@ net/minecraftforge/items/IItemHandlerModifiable	net/neoforged/neoforge/items/IIt
 net/minecraftforge/items/ItemHandlerHelper	net/neoforged/neoforge/items/ItemHandlerHelper
 net/minecraftforge/energy/IEnergyStorage	net/neoforged/neoforge/energy/IEnergyStorage
 net/minecraftforge/energy/EnergyStorage	net/neoforged/neoforge/energy/EnergyStorage
+thedarkcolour/kotlinforforge/KotlinModLoadingContext	thedarkcolour/kotlinforforge/neoforge/KotlinModLoadingContext
+thedarkcolour/kotlinforforge/KotlinModLoadingContext$Companion	thedarkcolour/kotlinforforge/neoforge/KotlinModLoadingContext$Companion
 net/minecraftforge/common/ForgeSpawnEggItem	net/neoforged/neoforge/common/DeferredSpawnEggItem
 # milestone 2: classes NeoForge 1.21.1 moved or renamed (checked against NeoForge 21.1.x)
 net/minecraftforge/common/ToolAction	net/neoforged/neoforge/common/ItemAbility
