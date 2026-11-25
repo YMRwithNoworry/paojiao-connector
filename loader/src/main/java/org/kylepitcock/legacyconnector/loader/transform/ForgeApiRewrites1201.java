@@ -20,6 +20,13 @@ import org.objectweb.asm.tree.MethodNode;
 final class ForgeApiRewrites1201 {
     static final String HELPERS = "legacyconnector/v1_20_1/ForgeApi1201";
     static final String RESOURCE = "legacyconnector/forward/1.20.1/forge-call-rewrites.tsv";
+    private static final String CONFIG_VALUE = "net/neoforged/neoforge/common/ModConfigSpec$ConfigValue";
+    private static final java.util.Set<String> CONFIG_VALUES = java.util.Set.of(CONFIG_VALUE,
+            "net/neoforged/neoforge/common/ModConfigSpec$BooleanValue",
+            "net/neoforged/neoforge/common/ModConfigSpec$IntValue",
+            "net/neoforged/neoforge/common/ModConfigSpec$LongValue",
+            "net/neoforged/neoforge/common/ModConfigSpec$DoubleValue",
+            "net/neoforged/neoforge/common/ModConfigSpec$EnumValue");
 
     private static volatile Map<String, String> table;
 
@@ -56,6 +63,13 @@ final class ForgeApiRewrites1201 {
             for (AbstractInsnNode in = m.instructions.getFirst(); in != null; in = next) {
                 next = in.getNext();
                 if (!(in instanceof MethodInsnNode call)) continue;
+                if (call.getOpcode() == Opcodes.INVOKEVIRTUAL && call.name.equals("get")
+                        && call.desc.equals("()Ljava/lang/Object;") && CONFIG_VALUES.contains(call.owner)) {
+                    m.instructions.set(call, new MethodInsnNode(Opcodes.INVOKESTATIC, HELPERS, "configValueGet",
+                            "(L" + CONFIG_VALUE + ";)Ljava/lang/Object;", false));
+                    n++;
+                    continue;
+                }
                 String helper = rules.get(call.owner + "." + call.name + call.desc);
                 boolean anyReceiver = false;
                 if (helper == null) {

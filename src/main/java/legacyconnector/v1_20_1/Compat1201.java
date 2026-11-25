@@ -1,5 +1,9 @@
 package legacyconnector.v1_20_1;
 
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.bus.api.Event;
 import net.neoforged.bus.api.ICancellableEvent;
 import net.neoforged.bus.api.IEventBus;
@@ -13,6 +17,12 @@ public final class Compat1201 {
     public static boolean post(IEventBus bus, Event event) {
         bus.post(event);
         return event instanceof ICancellableEvent cancellable && cancellable.isCanceled();
+    }
+
+    /** Forge 1.20.1 allowed a null entity to request an empty raycast context. */
+    public static ClipContext clipContext(Vec3 from, Vec3 to, ClipContext.Block block, ClipContext.Fluid fluid, Entity entity) {
+        return entity == null ? new ClipContext(from, to, block, fluid, CollisionContext.empty())
+                : new ClipContext(from, to, block, fluid, entity);
     }
 
     /** {@code new CompoundIngredient(list) {}} (an anonymous subclass that opened the constructor): NeoForge's final class through its factory. */

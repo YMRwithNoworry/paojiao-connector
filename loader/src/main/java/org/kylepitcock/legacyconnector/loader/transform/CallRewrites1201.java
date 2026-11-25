@@ -39,7 +39,12 @@ final class CallRewrites1201 {
             new String[] {"net/minecraft/resources/ResourceLocation", "parse", "(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;"},
             "net/minecraft/resources/ResourceLocation.<init>(Ljava/lang/String;Ljava/lang/String;)V",
             new String[] {"net/minecraft/resources/ResourceLocation", "fromNamespaceAndPath",
-                    "(Ljava/lang/String;Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;"});
+                    "(Ljava/lang/String;Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;"},
+            "net/minecraft/world/level/ClipContext.<init>(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;"
+                    + "Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;Lnet/minecraft/world/entity/Entity;)V",
+            new String[] {HELPERS, "clipContext",
+                    "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/level/ClipContext$Block;"
+                            + "Lnet/minecraft/world/level/ClipContext$Fluid;Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/level/ClipContext;"});
 
     private static final String PALLADIUM_ADDON_PACK_MANAGER = "net/threetag/palladium/addonpack/AddonPackManager";
     private static final String PALLADIUM_MOD_RESOURCE_PACK = "net/threetag/palladium/addonpack/forge/AddonPackManagerImpl$ModResourcePack";
@@ -326,7 +331,7 @@ final class CallRewrites1201 {
                 // InsnList.set/remove clear the replaced node's links: take the successor first
                 next = in.getNext();
                 if (in instanceof org.objectweb.asm.tree.InvokeDynamicInsnNode indy && indy.bsmArgs != null) {
-                    // ResourceLocation::new method references: the constructor handle becomes the factory handle
+                    // Constructor references use the same replacement factory as direct allocations.
                     for (int i = 0; i < indy.bsmArgs.length; i++) {
                         if (indy.bsmArgs[i] instanceof org.objectweb.asm.Handle h && h.getTag() == Opcodes.H_NEWINVOKESPECIAL) {
                             String[] f = FACTORIES.get(h.getOwner() + ".<init>" + h.getDesc());

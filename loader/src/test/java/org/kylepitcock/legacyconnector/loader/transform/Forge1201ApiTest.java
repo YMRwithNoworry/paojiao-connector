@@ -194,6 +194,19 @@ class Forge1201ApiTest {
     }
 
     @Test
+    void configValueReadsUseTheForgeDefaultBeforeConfigLoad() {
+        ClassNode node = with(new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
+                "net/neoforged/neoforge/common/ModConfigSpec$BooleanValue", "get", "()Ljava/lang/Object;", false));
+
+        assertEquals(1, ForgeApiRewrites1201.apply(node));
+        MethodInsnNode rewritten = firstCall(node);
+        assertEquals(Opcodes.INVOKESTATIC, rewritten.getOpcode());
+        assertEquals(ForgeApiRewrites1201.HELPERS, rewritten.owner);
+        assertEquals("configValueGet", rewritten.name);
+        assertEquals("(Lnet/neoforged/neoforge/common/ModConfigSpec$ConfigValue;)Ljava/lang/Object;", rewritten.desc);
+    }
+
+    @Test
     void anItemThatDeclaresInitCapabilitiesGetsTheInitInterface() {
         ClassNode node = new ClassNode();
         node.name = "my/Item";

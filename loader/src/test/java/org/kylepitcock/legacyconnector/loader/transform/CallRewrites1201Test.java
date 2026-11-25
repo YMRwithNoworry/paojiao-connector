@@ -337,6 +337,44 @@ class CallRewrites1201Test {
     }
 
     @Test
+    void nullableClipContextConstructorUsesLegacyCompatibleHelper() {
+        String owner = "net/minecraft/world/level/ClipContext";
+        String constructor = "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;"
+                + "Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;"
+                + "Lnet/minecraft/world/entity/Entity;)V";
+        String helper = "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;"
+                + "Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;"
+                + "Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/level/ClipContext;";
+        MethodNode method = new MethodNode(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "create",
+                "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;"
+                        + "Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;"
+                        + "Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/level/ClipContext;", null, null);
+        method.instructions.add(new TypeInsnNode(Opcodes.NEW, owner));
+        method.instructions.add(new InsnNode(Opcodes.DUP));
+        for (int i = 0; i < 5; i++) method.instructions.add(new VarInsnNode(Opcodes.ALOAD, i));
+        method.instructions.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, owner, "<init>", constructor, false));
+        method.instructions.add(new InsnNode(Opcodes.ARETURN));
+        method.maxStack = 7;
+        method.maxLocals = 5;
+        ClassNode node = node("example/Raycast", method);
+
+        assertEquals(1, CallRewrites1201.apply(node));
+
+        AbstractInsnNode[] instructions = method.instructions.toArray();
+        assertEquals(7, instructions.length);
+        for (int i = 0; i < 5; i++) {
+            assertEquals(Opcodes.ALOAD, instructions[i].getOpcode());
+            assertEquals(i, ((VarInsnNode) instructions[i]).var);
+        }
+        MethodInsnNode call = (MethodInsnNode) instructions[5];
+        assertEquals(Opcodes.INVOKESTATIC, call.getOpcode());
+        assertEquals(CallRewrites1201.HELPERS, call.owner);
+        assertEquals("clipContext", call.name);
+        assertEquals(helper, call.desc);
+        assertEquals(Opcodes.ARETURN, instructions[6].getOpcode());
+    }
+
+    @Test
     void palladiumAddonPackFolderConstructorUsesGameSymlinkValidatorHelper() {
         MethodNode method = new MethodNode(Opcodes.ACC_PRIVATE, "<init>", "()V", null, null);
         method.instructions.add(new TypeInsnNode(Opcodes.NEW, FOLDER_REPOSITORY_SOURCE));

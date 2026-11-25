@@ -679,6 +679,16 @@ public final class ForgeApi1201 {
         return ForgeApiClient1201.categoriesCreate(name, icons);
     }
 
+    /** Forge 1.20.1 production returned the declared default until a config file was loaded. */
+    public static Object configValueGet(net.neoforged.neoforge.common.ModConfigSpec.ConfigValue<?> value) {
+        try {
+            return value.get();
+        } catch (IllegalStateException unloaded) {
+            if (!"Cannot get config value before config is loaded.".equals(unloaded.getMessage())) throw unloaded;
+            return value.getDefault();
+        }
+    }
+
     /**
      * {@code spec.setConfig(config)}: a mod loading its own config file by hand; NeoForge hands the spec a loaded config instead. {@code LoadedConfig} is a
      * package-private record of FML (the interface is sealed), built reflectively with a detached ModConfig and no path, so saving through it is not supported.
