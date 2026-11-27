@@ -33,7 +33,7 @@ final class GuiApiSelfTestB173 {
             require(loaded.get("")==15&&!loadedFlag.get("")&&loadedMulti.getLabel("").equals("first"),"properties reload");
             reload.load(context);require(loaded.get(context)==30&&loadedFlag.get(context)&&loaded.get("")==15,"context reload");
             var path=ModSettings.getAppDir("minecraft/mods/"+name+"/guiconfig.properties").toPath();
-            require(path.startsWith(legacyconnector.vb1_7_3.net.minecraft.client.Minecraft.getRunDirectory().toPath()),"active instance path");
+            require(path.startsWith(net.neoforged.fml.loading.FMLPaths.GAMEDIR.get()),"active instance path");
             var left=new Widget();var right=new Widget();var child=new Widget();left.add(child);right.add(child);
             require(left.getNumChildren()==0&&right.getChild(0)==child&&child.getParent()==right,"widget reparenting");
             callbackValue=0;Runnable action=new ModAction(GuiApiSelfTestB173.class,"accept",int.class).setDefaultArguments(3);

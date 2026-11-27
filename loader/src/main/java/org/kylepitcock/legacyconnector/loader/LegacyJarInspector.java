@@ -81,12 +81,13 @@ public final class LegacyJarInspector {
             // and the known GeckoLib 3 artifact by its package and Minecraft version in the filename.
             boolean legacyLibraryInVersionFolder = libraryVersionFromFolder(path) != null && legacyLibrary(zip);
             boolean rootGeckoLib3Library = legacyLibrary(zip) && geckoLib3Version(zip, path.getFileName().toString()) != null;
+            boolean staleForge1144Metadata = hasStaleForge1144Metadata(zip, path);
             boolean strayModsToml = zip.getEntry("META-INF/neoforge.mods.toml") == null && zip.getEntry("fabric.mod.json") == null
                     && zip.getEntry("META-INF/MANIFEST.MF") != null
                     && (legacyCorePlugin(zip) || legacyLibraryInVersionFolder || rootGeckoLib3Library);
             // Anything that already speaks a modern metadata format is not ours to touch.
             if (zip.getEntry("META-INF/neoforge.mods.toml") != null
-                    || (zip.getEntry("META-INF/mods.toml") != null && !strayModsToml)
+                    || (zip.getEntry("META-INF/mods.toml") != null && !strayModsToml && !staleForge1144Metadata)
                     || zip.getEntry("fabric.mod.json") != null
                     || zip.getEntry("quilt.mod.json") != null) {
                 return null;
@@ -97,6 +98,7 @@ public final class LegacyJarInspector {
 
             Map<String, JsonObject> infoById = readMcModInfo(zip, jar);
             int refs17 = 0, refs112 = 0;
+            boolean references112PreInitialization = false;
             Markers markers = new Markers();
             List<LegacyModDecl> found = new ArrayList<>();
             List<String> modLoaderMods = new ArrayList<>();
@@ -120,6 +122,9 @@ public final class LegacyJarInspector {
                 String pool = constantPoolText(reader);
                 if (pool.contains("cpw/mods/fml/")) refs17++;
                 if (pool.contains("net/minecraftforge/fml/")) refs112++;
+                if (pool.contains("net/minecraftforge/fml/common/event/FMLPreInitializationEvent")) {
+                    references112PreInitialization = true;
+                }
                 markers.scan(pool, entry.getName());
                 // ModLoader (1.4.x): a mod is a class extending BaseMod (net.minecraft.src.BaseMod, or the bare name in a reobfuscated jar)
                 String superName = reader.getSuperName();
@@ -140,6 +145,12 @@ public final class LegacyJarInspector {
                         && (pool.contains("Lcpw/mods/fml/common/API;") || pool.contains("Lnet/minecraftforge/fml/common/API;"))) {
                     collectApi(reader, jar, entry.getName());
                 }
+            }
+
+            if (staleForge1144Metadata) {
+                boolean matchingModInfo = found.stream().anyMatch(decl -> infoById.containsKey(decl.legacyId));
+                if (refs112 == 0 || refs17 > 0 || !references112PreInitialization || !matchingModInfo) return null;
+                jar.notes.add("Treated the Forge 1.14.4 mods.toml as stale because matching mcmod.info and FMLPreInitializationEvent bytecode identify a 1.12.2 mod.");
             }
 
             if (found.isEmpty() && refs17 == 0 && refs112 == 0 && infoById.isEmpty() && jar.coreModClass == null) {
@@ -182,6 +193,45 @@ public final class LegacyJarInspector {
             jar.version = chooseVersion(zip, jar, infoById, refs17, refs112, markers, !modLoaderMods.isEmpty());
             return jar.version == null ? null : jar;
         }
+    }
+
+    /**
+     * MCreator SRP add-ons can carry a Forge 1.14.4 template mods.toml beside 1.12.2 mcmod.info.
+     * Keep the exception as a candidate only. {@link #inspect(Path)} also requires matching @Mod bytecode
+     * that references FMLPreInitializationEvent before accepting the jar.
+     */
+    private static boolean hasStaleForge1144Metadata(ZipFile zip, Path path) throws IOException {
+        if (zip.getEntry("META-INF/mods.toml") == null || zip.getEntry("mcmod.info") == null
+                || zip.getEntry("META-INF/neoforge.mods.toml") != null
+                || zip.getEntry("fabric.mod.json") != null || zip.getEntry("quilt.mod.json") != null) return false;
+
+        Map<String, JsonObject> infoById = readMcModInfo(zip, new LegacyJar(path));
+        if (infoById.size() != 1) return false;
+        Map.Entry<String, JsonObject> modInfo = infoById.entrySet().iterator().next();
+        JsonObject info = modInfo.getValue();
+        if (!info.has("mcversion") || !"1.12.2".equals(info.get("mcversion").getAsString())) return false;
+
+        String toml;
+        try (InputStream in = zip.getInputStream(zip.getEntry("META-INF/mods.toml"))) {
+            toml = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        return tomlTableHasValue(toml, "[[mods]]", "modId", modInfo.getKey())
+                && tomlTableHasValue(toml, "[[dependencies." + modInfo.getKey() + "]]", "modId", "minecraft")
+                && tomlTableHasValue(toml, "[[dependencies." + modInfo.getKey() + "]]", "versionRange", "[1.14.4]");
+    }
+
+    private static boolean tomlTableHasValue(String text, String table, String key, String value) {
+        String[] lines = text.split("\\R");
+        for (int i = 0; i < lines.length; i++) {
+            if (!lines[i].strip().equals(table)) continue;
+            for (int j = i + 1; j < lines.length && !lines[j].strip().startsWith("["); j++) {
+                var match = TOML_STRING.matcher(lines[j].strip());
+                if (match.find() && key.equals(match.group(1)) && value.equals(match.group(2) != null ? match.group(2) : match.group(3))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static final java.util.regex.Pattern TOML_STRING = java.util.regex.Pattern.compile("^\\s*([A-Za-z]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')");

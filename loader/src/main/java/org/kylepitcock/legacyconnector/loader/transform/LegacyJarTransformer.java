@@ -38,7 +38,7 @@ import org.objectweb.asm.tree.ClassNode;
  */
 public final class LegacyJarTransformer {
     /** Bump whenever the output of this class changes, to invalidate caches. */
-    public static final int TRANSFORMER_VERSION = 118;
+    public static final int TRANSFORMER_VERSION = 121;
     /** Names the legacy coremod plugin class of a translated jar. */
     public static final String COREMOD_RESOURCE = "META-INF/legacyconnector-coremod.txt";
 
@@ -410,6 +410,8 @@ public final class LegacyJarTransformer {
         if (srpAssetCompat > 0) result.notes.add("Repaired " + srpAssetCompat + " malformed SRP model asset(s)");
         int srpCompat = org.kylepitcock.legacyconnector.loader.transform.compat.SrpApiCompat.apply(jar, classes, peers);
         if (srpCompat > 0) result.notes.add("Applied " + srpCompat + " shared SRP API compatibility adjustment(s)");
+        int srpMidgeShotFixes = org.kylepitcock.legacyconnector.loader.transform.compat.SrpMidgeShotServerFix.apply(jar, classes);
+        if (srpMidgeShotFixes > 0) result.notes.add("Removed " + srpMidgeShotFixes + " SRP Calamity server-side midge-shot particle loop(s)");
 
         result.notes.addAll(contents.notes);
         int platformCopies = dropPlatformLibraries(classes, other);
@@ -441,6 +443,11 @@ public final class LegacyJarTransformer {
             ScalaSigRelocator.apply(node, name -> remapper.map(name));
             nodes.put(node.name, node);
             hierarchy.addLocal(ClassInfo.of(node));
+        }
+        if (version == LegacyVersion.V1_12_2) {
+            int boatDataFixes = 0;
+            for (ClassNode node : nodes.values()) boatDataFixes += org.kylepitcock.legacyconnector.loader.transform.compat.SrpCalamityBoatDataFix.apply(node);
+            if (boatDataFixes > 0) result.notes.add("Fixed " + boatDataFixes + " SRP Calamity chest-boat entity binding(s)");
         }
 
         // Pass 2: call-site fixes and link checking, then serialize.
@@ -484,6 +491,18 @@ public final class LegacyJarTransformer {
                 int redirected = CoreModMixinConfigCalls.apply(plugin, java.util.Set.copyOf(jar.mixinConfigSources));
                 if (redirected > 0) result.notes.add("Redirected " + redirected
                         + " coremod Mixin config registration call(s) to NeoForge's generated mixin metadata");
+            }
+            if (jar.coreModClass != null && !jar.mixinConfigResources.isEmpty()) {
+                String coremodName = jar.coreModClass.trim().replace('.', '/');
+                String jarKey = jar.fileName().replaceAll("(?i)\\.jar$", "").replaceAll("[^A-Za-z0-9_-]", "_");
+                String relocated = CoreModPackageRelocator.relocateIfInMixinPackage(
+                        nodes, coremodName, jarKey, jar.mixinConfigResources, other);
+                if (!relocated.equals(coremodName)) {
+                    jar.coreModClass = relocated.replace('/', '.');
+                    hierarchy.addLocal(ClassInfo.of(nodes.get(relocated)));
+                    result.notes.add("Moved coremod " + coremodName.replace('/', '.')
+                            + " outside its declared Mixin package so the loader can construct it");
+                }
             }
         }
         int absent = 0;

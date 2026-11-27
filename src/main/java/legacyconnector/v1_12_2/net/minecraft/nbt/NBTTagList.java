@@ -92,9 +92,10 @@ public class NBTTagList extends NBTBase implements Iterable<NBTBase> {
     }
 
     private void mcc$insert(int index, NBTBase value) {
+        int previousSize = mcc$list.size();
         Tag modern = value.mcc$modern();
         mcc$list.add(index, modern);
-        shiftChildren(index, 1);
+        if (index < previousSize) shiftChildren(index, 1);
         value.mcc$parent = this;
         mcc$children.put(index, value);
         mcc$childTags.put(index, modern);

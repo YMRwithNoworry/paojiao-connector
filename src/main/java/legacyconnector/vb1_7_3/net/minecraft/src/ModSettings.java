@@ -3,6 +3,7 @@ package legacyconnector.vb1_7_3.net.minecraft.src;
 import java.io.*;
 import java.util.*;
 import legacyconnector.vb1_7_3.net.minecraft.client.Minecraft;
+import net.neoforged.fml.loading.FMLPaths;
 /** GuiAPI 0.10/0.11 settings storage, rooted in the active game instance. */
 public class ModSettings {
     public static ArrayList<ModSettings> all=new ArrayList<>();
@@ -14,7 +15,13 @@ public class ModSettings {
     private static Minecraft mcinst;
     public ModSettings(String name){backendname=name;all.add(this);}
     public static void presetMcint(Minecraft mc){mcinst=mc;}public static Minecraft getMcinst(){return mcinst==null?Minecraft.mcc$instance():mcinst;}
-    public static File getAppDir(String path){return Minecraft.getApplicationDirectory(path);}
+    public static File getAppDir(String path){
+        String normalized=path.replace('\\','/');
+        if(normalized.equals("minecraft")||normalized.equals(".minecraft"))return FMLPaths.GAMEDIR.get().toFile();
+        if(normalized.startsWith("minecraft/"))normalized=normalized.substring("minecraft/".length());
+        else if(normalized.startsWith(".minecraft/"))normalized=normalized.substring(".minecraft/".length());
+        return FMLPaths.GAMEDIR.get().resolve(normalized).normalize().toFile();
+    }
     public void append(Setting setting){Settings.add(setting);setting.parent=this;}
     public void remove(Setting setting){Settings.remove(setting);setting.parent=null;}public int size(){return Settings.size();}
     public void resetAll(String context){for(Setting<?> s:Settings)s.reset(context);}public void resetAll(){resetAll(currentContext);}
