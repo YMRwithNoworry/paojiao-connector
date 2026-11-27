@@ -298,6 +298,11 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
             }
             if (legacy.isEmpty()) return;
             List<SideBySide.Unit> crossVersionUnits = dropDuplicateMods(legacy, SideBySide.enabled(LibraryBridges.readConfig(modsDir)));
+            MISSING_DEPENDENCY_SKIPS.clear();
+            for (LegacyJar jar : legacy) {
+                String missing = missingHardDependency(jar, legacy);
+                if (missing != null) MISSING_DEPENDENCY_SKIPS.put(jar, missing);
+            }
 
             List<LibraryBridges.Bridge> bridges = LibraryBridges.active(modsDir);
             SideBySide.setCurrent(SideBySide.NONE);
@@ -975,6 +980,12 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
 
     /** Jars left out because another jar holds the same mod id in a newer version (a player keeps two downloads of one mod in mods/). */
     private static final Map<LegacyJar, String> DUPLICATE_SKIPS = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Jars whose legacy entrypoint cannot run without an API library that is not bundled by the original archive. */
+    private static final Map<LegacyJar, String> MISSING_DEPENDENCY_SKIPS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Known legacy addons whose entrypoint eagerly links an external API before its optional checks can run. */
+    private static final Map<String, String> KNOWN_HARD_DEPENDENCIES = Map.of(
+            "swparasites", "spartanweaponry");
 
     /**
      * FML refuses two files with one mod id; here the second copy used to make neither load (the mod never registered, with no message). Keeps the
@@ -1053,6 +1064,8 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
         if (lib != null) return lib;
         String dup = DUPLICATE_SKIPS.get(jar);
         if (dup != null) return dup;
+        String dependency = MISSING_DEPENDENCY_SKIPS.get(jar);
+        if (dependency != null) return dependency;
         // A client-only mod (@Mod class under @SideOnly(CLIENT), or clientSideOnly = true) has nothing to do on a dedicated server: FML dropped it there.
         if (jar.hasMods() && "SERVER".equals(currentSide) && jar.mods.stream().allMatch(m -> m.clientSideOnly)) {
             return "client-only mod (@SideOnly(CLIENT) mod class); not loaded on a dedicated server";
@@ -1061,6 +1074,31 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
             return "LaunchWrapper tweaker (" + jar.tweakClass + ") with no @Mod; tweakers cannot run on modlauncher";
         }
         return null;
+    }
+
+    /**
+     * Some old addons use an external API from their entrypoint's static initialization, so the normal lazy missing-class
+     * stubs cannot keep the addon alive. Skip only the affected addon when its known hard dependency is absent. The dependency
+     * jar still loads normally when present, preserving the full integration path.
+     */
+    static String missingHardDependency(LegacyJar jar, List<LegacyJar> all) {
+        for (LegacyModDecl mod : jar.mods) {
+            String dependency = KNOWN_HARD_DEPENDENCIES.get(mod.legacyId.toLowerCase(Locale.ROOT));
+            if (dependency == null || hasLegacyMod(all, dependency)) continue;
+            return "missing required legacy dependency " + dependency
+                    + "; install its matching 1.12.2 jar to enable " + mod.legacyId;
+        }
+        return null;
+    }
+
+    private static boolean hasLegacyMod(List<LegacyJar> jars, String id) {
+        for (LegacyJar jar : jars) {
+            if (DUPLICATE_SKIPS.containsKey(jar)) continue;
+            for (LegacyModDecl mod : jar.mods) {
+                if (id.equalsIgnoreCase(mod.legacyId) || id.equalsIgnoreCase(mod.modernId())) return true;
+            }
+        }
+        return false;
     }
 
     /** Content hash + transformer version + shim index + the other legacy jars of its version: any change re-translates. */
