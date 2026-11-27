@@ -77,10 +77,13 @@ public final class LegacyJarInspector {
                 LegacyJar forge = inspectForge1201(zip, path);
                 if (forge != null) return forge;
             }
-            // Some old Forge libraries retain a Forge 1.15 template mods.toml; recognize their explicit legacy marker in a version folder.
+            // Some old Forge libraries retain a Forge 1.15 template mods.toml. Recognize its explicit legacy marker in a version folder,
+            // and the known GeckoLib 3 artifact by its package and Minecraft version in the filename.
             boolean legacyLibraryInVersionFolder = libraryVersionFromFolder(path) != null && legacyLibrary(zip);
+            boolean rootGeckoLib3Library = legacyLibrary(zip) && geckoLib3Version(zip, path.getFileName().toString()) != null;
             boolean strayModsToml = zip.getEntry("META-INF/neoforge.mods.toml") == null && zip.getEntry("fabric.mod.json") == null
-                    && zip.getEntry("META-INF/MANIFEST.MF") != null && (legacyCorePlugin(zip) || legacyLibraryInVersionFolder);
+                    && zip.getEntry("META-INF/MANIFEST.MF") != null
+                    && (legacyCorePlugin(zip) || legacyLibraryInVersionFolder || rootGeckoLib3Library);
             // Anything that already speaks a modern metadata format is not ours to touch.
             if (zip.getEntry("META-INF/neoforge.mods.toml") != null
                     || (zip.getEntry("META-INF/mods.toml") != null && !strayModsToml)
@@ -695,8 +698,22 @@ public final class LegacyJarInspector {
                 jar.versionEvidence = "FMLModType=LIBRARY in mods/" + folderVersion.id() + " (no version references in the library)";
                 return folderVersion;
             }
+            LegacyVersion geckoLib3Version = geckoLib3Version(zip, jar.fileName());
+            if (geckoLib3Version != null) {
+                jar.versionEvidence = "GeckoLib 3 FML library artifact name identifies Minecraft " + geckoLib3Version.id();
+                return geckoLib3Version;
+            }
         }
         return null;
+    }
+
+    private static LegacyVersion geckoLib3Version(ZipFile zip, String fileName) {
+        if (zip.getEntry("software/bernie/geckolib3/GeckoLib.class") == null) return null;
+        java.util.regex.Matcher version = java.util.regex.Pattern
+                .compile("(?i)(?:^|[-_.])(1\\.(?:8|9|1[0-2])(?:\\.\\d+)?)(?:[-_.]|$)")
+                .matcher(fileName);
+        if (!version.find()) return null;
+        return LegacyVersion.fromMinecraftVersion(version.group(1));
     }
 
     private static LegacyVersion libraryVersionFromFolder(Path path) {
