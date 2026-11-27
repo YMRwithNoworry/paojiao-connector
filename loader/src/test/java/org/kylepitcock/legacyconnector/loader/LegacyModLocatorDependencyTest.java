@@ -25,6 +25,23 @@ class LegacyModLocatorDependencyTest {
         assertNull(LegacyModLocator.missingHardDependency(swparasites, List.of(swparasites, spartan)));
     }
 
+    @Test
+    void skipsCotesiaBeforeConstructionWhenGeckoLib3IsAbsent() {
+        LegacyJar cotesia = jar("srpcotesia");
+
+        String reason = LegacyModLocator.missingHardDependency(cotesia, List.of(cotesia));
+
+        assertTrue(reason.contains("geckolib3"));
+    }
+
+    @Test
+    void keepsCotesiaEligibleWhenGeckoLib3IsInstalled() {
+        LegacyJar cotesia = jar("srpcotesia");
+        LegacyJar geckolib = jar("geckolib3");
+
+        assertNull(LegacyModLocator.missingHardDependency(cotesia, List.of(cotesia, geckolib)));
+    }
+
     private static LegacyJar jar(String id) {
         LegacyJar jar = new LegacyJar(Path.of(id + ".jar"));
         jar.version = LegacyVersion.V1_12_2;

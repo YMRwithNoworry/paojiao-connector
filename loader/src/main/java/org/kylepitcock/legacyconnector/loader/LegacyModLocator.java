@@ -985,6 +985,7 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
 
     /** Known legacy addons whose entrypoint eagerly links an external API before its optional checks can run. */
     private static final Map<String, String> KNOWN_HARD_DEPENDENCIES = Map.of(
+            "srpcotesia", "geckolib3",
             "swparasites", "spartanweaponry");
 
     /**
