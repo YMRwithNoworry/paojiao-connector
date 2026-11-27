@@ -2,14 +2,26 @@ package org.kylepitcock.legacyconnector.v1_20_1.migrate;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import java.util.List;
 import java.util.Objects;
+import net.minecraft.commands.arguments.ParticleArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -790,6 +802,20 @@ public final class MiddleCompat {
         return scoreboard.addObjective(name, criteria, displayName, renderType, false, null);
     }
 
+    /** The 1.20.1 name lookup used by ServerScoreboard.hasObjective. */
+    public static boolean hasObjective(net.minecraft.world.scores.Scoreboard scoreboard, String name) {
+        return scoreboard.getObjective(name) != null;
+    }
+
+    /** Creates the same dummy objective when a 1.20.1 caller asks for a missing name. */
+    public static net.minecraft.world.scores.Objective getOrCreateObjective(net.minecraft.world.scores.Scoreboard scoreboard, String name) {
+        net.minecraft.world.scores.Objective objective = scoreboard.getObjective(name);
+        if (objective != null) return objective;
+        return scoreboard.addObjective(name, net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY,
+                net.minecraft.network.chat.Component.literal(name),
+                net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType.INTEGER, false, null);
+    }
+
     /** {@code scoreboard.getOrCreatePlayerScore(String name, Objective)}. */
     public static LegacyScore playerScore(net.minecraft.world.scores.Scoreboard scoreboard, String name, net.minecraft.world.scores.Objective objective) {
         return new LegacyScore(scoreboard.getOrCreatePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly(name), objective), name);
@@ -810,6 +836,39 @@ public final class MiddleCompat {
             result.put(objective, new LegacyScore(scoreboard.getOrCreatePlayerScore(holder, objective), name));
         }
         return result;
+    }
+
+    /** A null objective in 1.20.1 removes every score belonging to this name. */
+    public static void resetPlayerScore(net.minecraft.world.scores.Scoreboard scoreboard, String name,
+            net.minecraft.world.scores.Objective objective) {
+        var holder = net.minecraft.world.scores.ScoreHolder.forNameOnly(name);
+        if (objective == null) scoreboard.resetAllPlayerScores(holder);
+        else scoreboard.resetSinglePlayerScore(holder, objective);
+    }
+
+    /** Resolves the particle in the caller's lookup and uses the 1.21.1 codec for structured options. */
+    public static ParticleOptions readParticle(StringReader reader, HolderLookup<ParticleType<?>> lookup)
+            throws CommandSyntaxException {
+        ResourceLocation id = ResourceLocation.read(reader);
+        var entry = lookup.get(ResourceKey.create(Registries.PARTICLE_TYPE, id));
+        if (entry.isEmpty()) throw ParticleArgument.ERROR_UNKNOWN_PARTICLE.createWithContext(reader, id);
+        return readParticleOptions(entry.get().value(), reader);
+    }
+
+    /** Reads options through the particle codec after a legacy caller has already resolved its type. */
+    @SuppressWarnings("unchecked")
+    static <T extends ParticleOptions> T readParticleOptions(ParticleType<T> type, StringReader reader)
+            throws CommandSyntaxException {
+        if (type instanceof SimpleParticleType simple) return (T) simple;
+        CompoundTag options = reader.canRead() && reader.peek() == '{' ? new TagParser(reader).readStruct() : new CompoundTag();
+        HolderLookup.Provider provider = MigrateContext.provider();
+        if (provider == RegistryAccess.EMPTY) provider = BuiltinParticleRegistries.ACCESS;
+        return type.codec().codec().parse(provider.createSerializationContext(NbtOps.INSTANCE), options)
+                .getOrThrow(ParticleArgument.ERROR_INVALID_OPTIONS::create);
+    }
+
+    private static final class BuiltinParticleRegistries {
+        static final RegistryAccess ACCESS = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
     }
 
     /** The queried table id a 1.20.1 {@code LootContext.Builder.create(ResourceLocation)} passes. */

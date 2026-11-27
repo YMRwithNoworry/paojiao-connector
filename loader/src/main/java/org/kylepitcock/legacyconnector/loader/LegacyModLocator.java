@@ -40,6 +40,7 @@ import org.kylepitcock.legacyconnector.loader.synth.SynthDemand;
 import org.kylepitcock.legacyconnector.loader.synth.SynthJarBuilder;
 import org.kylepitcock.legacyconnector.loader.transform.LegacyJarTransformer;
 import org.kylepitcock.legacyconnector.loader.transform.Mc1201Hierarchy;
+import org.kylepitcock.legacyconnector.loader.transform.compat.TaczArcana1201;
 import org.objectweb.asm.ClassReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,22 +136,29 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
      */
     private static Path packagedMod(Path archive, Path nestedDir) {
         try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(archive.toFile())) {
+            ZipEntry embedded = TaczArcana1201.embeddedPayload(zip);
+            if (embedded != null) return extractPackagedMod(archive, nestedDir, zip, embedded);
             var entries = zip.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry e = entries.nextElement();
                 String n = e.getName();
                 if (e.isDirectory() || !n.matches("(?i)[^/]*mods?[ _-]?folder[^/]*/[^/]+[.](zip|jar)")) continue;
-                Files.createDirectories(nestedDir);
-                Path target = nestedDir.resolve(archive.getFileName().toString().replaceAll("[.](zip|jar)$", "") + "-" + n.substring(n.lastIndexOf('/') + 1));
-                try (var in = zip.getInputStream(e)) {
-                    Files.copy(in, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                }
-                return target;
+                return extractPackagedMod(archive, nestedDir, zip, e);
             }
         } catch (IOException | RuntimeException e) {
             LOG.debug("Legacy Connector: could not look for a packaged mod in {}", archive, e);
         }
         return null;
+    }
+
+    private static Path extractPackagedMod(Path archive, Path nestedDir, ZipFile zip, ZipEntry entry) throws IOException {
+        Files.createDirectories(nestedDir);
+        String name = entry.getName();
+        Path target = nestedDir.resolve(archive.getFileName().toString().replaceAll("[.](zip|jar)$", "") + "-" + name.substring(name.lastIndexOf('/') + 1));
+        try (var in = zip.getInputStream(entry)) {
+            Files.copy(in, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        return target;
     }
 
     /**
@@ -260,6 +268,7 @@ public final class LegacyModLocator implements IModFileCandidateLocator {
                                 }
                                 continue;
                             }
+                            if (jar != null && packaged != null) context.addLocated(p);
                             if (jar != null && jar.version != null && dir.equals(modsDir) && autoSortMods(modsDir)) {
                                 Path moved = moveIntoVersionFolder(p, modsDir, jar.version);
                                 if (moved != null) {

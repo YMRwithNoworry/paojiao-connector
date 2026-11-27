@@ -463,6 +463,7 @@ net/minecraft/world/item/crafting/Ingredient	of	(Lnet/minecraft/world/item/ItemS
 net/minecraft/world/item/crafting/Ingredient	of	(Lnet/minecraft/world/item/Item;Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/item/crafting/Ingredient;	RoundCompat	partialIngredient	-
 net/minecraft/world/item/crafting/Ingredient	of	(Lnet/minecraft/nbt/CompoundTag;[Lnet/minecraft/world/level/ItemLike;)Lnet/minecraft/world/item/crafting/Ingredient;	RoundCompat	partialIngredient	-
 net/minecraft/server/packs/repository/Pack	readMetaAndCreate	(Ljava/lang/String;Lnet/minecraft/network/chat/Component;ZLorg/kylepitcock/legacyconnector/v1_20_1/migrate/LegacyResourcesSupplier;Lnet/minecraft/server/packs/PackType;Lnet/minecraft/server/packs/repository/Pack$Position;Lnet/minecraft/server/packs/repository/PackSource;)Lnet/minecraft/server/packs/repository/Pack;	RoundCompat	readMetaAndCreate	-
+net/minecraft/server/packs/AbstractPackResources	<init>	(Ljava/lang/String;Z)V	=args	RoundCompat.packLocation@0+1	(Lnet/minecraft/server/packs/PackLocationInfo;)V
 net/minecraft/server/packs/PathPackResources	<init>	(Ljava/lang/String;Ljava/nio/file/Path;Z)V	RoundCompat	newPathPack	-
 net/neoforged/fml/config/ModConfig	<init>	(Lnet/neoforged/fml/config/ModConfig$Type;Lnet/neoforged/fml/config/IConfigSpec;Lnet/neoforged/fml/ModContainer;Ljava/lang/String;)V	RoundCompat	newModConfig	-
 net/neoforged/fml/config/ModConfig	<init>	(Lnet/neoforged/fml/config/ModConfig$Type;Lnet/neoforged/fml/config/IConfigSpec;Lnet/neoforged/fml/ModContainer;)V	RoundCompat	newModConfig	-
@@ -575,6 +576,8 @@ net/minecraft/client/resources/model/ModelResourceLocation	getNamespace	()Ljava/
 net/minecraft/client/resources/model/ModelResourceLocation	getPath	()Ljava/lang/String;	MiddleClientCompat	modelPath
 net/minecraft/client/resources/model/ModelResourceLocation	<init>	(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V	=args	MiddleClientCompat.modelId@0+1,2	(Lnet/minecraft/resources/ResourceLocation;Ljava/lang/String;)V
 net/minecraft/client/resources/sounds/Sound	<init>	(Ljava/lang/String;Lnet/minecraft/util/valueproviders/SampledFloat;Lnet/minecraft/util/valueproviders/SampledFloat;ILnet/minecraft/client/resources/sounds/Sound$Type;ZZI)V	MiddleClientCompat	newSound
+com/mojang/blaze3d/systems/RenderSystem	getInverseViewRotationMatrix	()Lorg/joml/Matrix3f;	MiddleClientCompat	inverseViewRotationMatrix
+com/mojang/blaze3d/systems/RenderSystem	setInverseViewRotationMatrix	(Lorg/joml/Matrix3f;)V	MiddleClientCompat	setInverseViewRotationMatrix
 net/minecraft/client/gui/components/AbstractSelectionList	<init>	(Lnet/minecraft/client/Minecraft;IIIII)V	=args	0,1,2,3,5	(Lnet/minecraft/client/Minecraft;IIII)V
 net/minecraft/world/level/storage/loot/BuiltInLootTables	register	(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/resources/ResourceLocation;	LootTableCompat	lootTableId	(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/resources/ResourceLocation;
 net/minecraft/world/item/MobBucketItem	<init>	(Ljava/util/function/Supplier;Ljava/util/function/Supplier;Ljava/util/function/Supplier;Lnet/minecraft/world/item/Item$Properties;)V	LegacyMobBucketItem	create	-
@@ -598,9 +601,13 @@ net/minecraft/world/entity/ai/attributes/AttributeSupplier	getBaseValue	(Lnet/mi
 net/minecraft/world/entity/ai/attributes/AttributeInstance	removePermanentModifier	(Ljava/util/UUID;)Z	MiddleCompat	removePermanentModifier
 net/minecraft/world/entity/ai/attributes/AttributeInstance	<init>	(Lnet/minecraft/world/entity/ai/attributes/Attribute;Ljava/util/function/Consumer;)V	=args	HolderCompat.holder@0,1	(Lnet/minecraft/core/Holder;Ljava/util/function/Consumer;)V
 net/minecraft/world/scores/Scoreboard	addObjective	(Ljava/lang/String;Lnet/minecraft/world/scores/criteria/ObjectiveCriteria;Lnet/minecraft/network/chat/Component;Lnet/minecraft/world/scores/criteria/ObjectiveCriteria$RenderType;)Lnet/minecraft/world/scores/Objective;	MiddleCompat	addObjective
+net/minecraft/world/scores/Scoreboard	hasObjective	(Ljava/lang/String;)Z	MiddleCompat	hasObjective
+net/minecraft/world/scores/Scoreboard	getOrCreateObjective	(Ljava/lang/String;)Lnet/minecraft/world/scores/Objective;	MiddleCompat	getOrCreateObjective
 net/minecraft/world/scores/Scoreboard	getOrCreatePlayerScore	(Ljava/lang/String;Lnet/minecraft/world/scores/Objective;)Lorg/kylepitcock/legacyconnector/v1_20_1/migrate/LegacyScore;	MiddleCompat	playerScore
 net/minecraft/world/scores/Scoreboard	hasPlayerScore	(Ljava/lang/String;Lnet/minecraft/world/scores/Objective;)Z	MiddleCompat	hasPlayerScore
 net/minecraft/world/scores/Scoreboard	getPlayerScores	(Ljava/lang/String;)Ljava/util/Map;	MiddleCompat	playerScores
+net/minecraft/world/scores/Scoreboard	resetPlayerScore	(Ljava/lang/String;Lnet/minecraft/world/scores/Objective;)V	MiddleCompat	resetPlayerScore
+net/minecraft/commands/arguments/ParticleArgument	readParticle	(Lcom/mojang/brigadier/StringReader;Lnet/minecraft/core/HolderLookup;)Lnet/minecraft/core/particles/ParticleOptions;	MiddleCompat	readParticle
 net/minecraft/world/level/storage/loot/LootContext$Builder	create	(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/world/level/storage/loot/LootContext;	=args	MiddleCompat.optionalId@0	(Ljava/util/Optional;)Lnet/minecraft/world/level/storage/loot/LootContext;
 net/minecraft/world/level/storage/loot/LootContext	getLootingModifier	()I	MiddleCompat	getLootingModifier
 net/minecraft/world/level/storage/loot/entries/LootPoolSingletonContainer	<init>	(II[Lnet/minecraft/world/level/storage/loot/predicates/LootItemCondition;[Lnet/minecraft/world/level/storage/loot/functions/LootItemFunction;)V	=args	0,1,MiscCompat.conditions@2,MiddleCompat.functions@3	(IILjava/util/List;Ljava/util/List;)V

@@ -19,10 +19,12 @@ import org.objectweb.asm.Opcodes;
 
 /**
  * Build-time tool: {@code ShimIndexGenerator <output file> <classes dir>...}.
- * Indexes every class below {@code legacyconnector/} (the relocated legacy API surface).
+ * Indexes the relocated legacy API and selected Forge 1.20.1 classes that retain their binary names for JNI.
  */
 public final class ShimIndexGenerator {
     public static final String SHIM_ROOT = "legacyconnector/";
+    public static final String ORIGINAL_NETWORK_PACKAGE = "net/minecraftforge/network/";
+    public static final String ORIGINAL_FML_LOADING_PACKAGE = "net/minecraftforge/fml/loading/";
 
     private ShimIndexGenerator() {}
 
@@ -35,7 +37,9 @@ public final class ShimIndexGenerator {
             try (Stream<Path> walk = Files.walk(root)) {
                 for (Path p : (Iterable<Path>) walk::iterator) {
                     String rel = root.relativize(p).toString().replace('\\', '/');
-                    if (!rel.startsWith(SHIM_ROOT) || !rel.endsWith(".class")) continue;
+                    if (!rel.endsWith(".class") || !(rel.startsWith(SHIM_ROOT)
+                            || rel.startsWith(ORIGINAL_NETWORK_PACKAGE)
+                            || rel.startsWith(ORIGINAL_FML_LOADING_PACKAGE))) continue;
                     try (InputStream in = Files.newInputStream(p)) {
                         ClassInfo info = read(new ClassReader(in));
                         classes.put(info.name, info);

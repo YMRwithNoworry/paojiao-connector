@@ -122,8 +122,8 @@ final class Forge1201JarTransformerTest {
 
             String shimPrefix = "legacyconnector/v1_20_1/net/minecraftforge/network/";
             String contextType = shimPrefix + "NetworkEvent$Context";
-            String simpleChannelType = shimPrefix + "simple/SimpleChannel";
-            String messageBuilderType = shimPrefix + "simple/SimpleChannel$MessageBuilder";
+            String simpleChannelType = "net/minecraftforge/network/simple/SimpleChannel";
+            String messageBuilderType = simpleChannelType + "$MessageBuilder";
             String contextDescriptor = "L" + contextType + ";";
             String messageBuilderDescriptor = "L" + messageBuilderType + ";";
 
@@ -144,7 +144,7 @@ final class Forge1201JarTransformerTest {
                     .findFirst().orElseThrow();
             Handle classHandle = (Handle) firstInstruction(networkHandle, LdcInsnNode.class).cst;
             assertEquals(shimPrefix + "NetworkRegistry", classHandle.getOwner());
-            assertEquals("()L" + shimPrefix + "simple/SimpleChannel;", classHandle.getDesc());
+            assertEquals("()L" + simpleChannelType + ";", classHandle.getDesc());
 
             var networkTypeLiteral = caller.methods.stream()
                     .filter(method -> method.name.equals("networkTypeLiteral"))
@@ -177,7 +177,7 @@ final class Forge1201JarTransformerTest {
         Forge1201ApiUsageAnalyzer.Analysis analysis =
                 Forge1201ApiUsageAnalyzer.analyzeTranslated(translated);
         String context = "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent$Context";
-        String direction = "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkDirection";
+        String direction = "net/minecraftforge/network/NetworkDirection";
 
         assertTrue(analysis.referencedApiClasses().contains(context));
         assertTrue(analysis.referencedApiClasses().contains(direction));
@@ -240,7 +240,7 @@ final class Forge1201JarTransformerTest {
 
     private static byte[] translatedShimReferenceClass() {
         String context = "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent$Context";
-        String direction = "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkDirection";
+        String direction = "net/minecraftforge/network/NetworkDirection";
         ClassWriter writer = new ClassWriter(0);
         writer.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, "sample/TranslatedShimCaller", null,
                 "java/lang/Object", null);

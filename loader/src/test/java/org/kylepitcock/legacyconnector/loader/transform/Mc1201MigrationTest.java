@@ -28,6 +28,11 @@ class Mc1201MigrationTest implements Opcodes {
     private static final String CT = "net/minecraft/nbt/CompoundTag";
     private static final String BE = "net/minecraft/world/level/block/entity/BlockEntity";
     private static final String PROVIDER = "net/minecraft/core/HolderLookup$Provider";
+    private static final String SOUND = "net/minecraft/client/resources/sounds/Sound";
+    private static final String LEGACY_SOUND = MIGRATE + "LegacySound1201";
+    private static final String LEGACY_SOUND_CTOR_DESC =
+            "(Ljava/lang/String;Lnet/minecraft/util/valueproviders/SampledFloat;Lnet/minecraft/util/valueproviders/SampledFloat;"
+                    + "ILnet/minecraft/client/resources/sounds/Sound$Type;ZZI)V";
 
     private static ClassNode cls(String name, String sup) {
         ClassNode n = new ClassNode();
@@ -90,6 +95,67 @@ class Mc1201MigrationTest implements Opcodes {
         assertEquals(INVOKESTATIC, call.getOpcode());
         assertEquals("(L" + ME + ";II)L" + MEI + ";", call.desc);
         for (AbstractInsnNode in : m.instructions) assertFalse(in instanceof TypeInsnNode, "NEW and DUP are gone");
+    }
+
+    @Test
+    void legacySoundSubclassUsesStringConstructorBridge() {
+        ClassNode sound = cls("test/CustomSound", SOUND);
+        MethodNode constructor = method(sound, ACC_PUBLIC, "<init>", LEGACY_SOUND_CTOR_DESC);
+        constructor.instructions.add(new VarInsnNode(ALOAD, 0));
+        constructor.instructions.add(new VarInsnNode(ALOAD, 1));
+        constructor.instructions.add(new VarInsnNode(ALOAD, 2));
+        constructor.instructions.add(new VarInsnNode(ALOAD, 3));
+        constructor.instructions.add(new VarInsnNode(ILOAD, 4));
+        constructor.instructions.add(new VarInsnNode(ALOAD, 5));
+        constructor.instructions.add(new VarInsnNode(ILOAD, 6));
+        constructor.instructions.add(new VarInsnNode(ILOAD, 7));
+        constructor.instructions.add(new VarInsnNode(ILOAD, 8));
+        constructor.instructions.add(new MethodInsnNode(INVOKESPECIAL, SOUND, "<init>", LEGACY_SOUND_CTOR_DESC, false));
+        constructor.instructions.add(new InsnNode(RETURN));
+        constructor.maxLocals = 9;
+
+        Mc1201Migration.Counts counts = apply(sound);
+
+        assertEquals(1, counts.soundSubclassBridges);
+        assertEquals(LEGACY_SOUND, sound.superName);
+        assertEquals(LEGACY_SOUND, find(constructor, LEGACY_SOUND, "<init>").owner);
+        assertEquals(0, Mc1201Migration.apply(sound, hierarchy(sound)).soundSubclassBridges,
+                "the sound superclass bridge is idempotent");
+    }
+
+    @Test
+    void inverseViewRotationUsesTheActiveCameraRotation() {
+        String matrix = "org/joml/Matrix3f";
+        String descriptor = "()L" + matrix + ";";
+        ClassNode c = cls("test/CameraRotation", "java/lang/Object");
+        MethodNode m = method(c, ACC_PUBLIC | ACC_STATIC, "rotation", descriptor);
+        m.instructions.add(new MethodInsnNode(INVOKESTATIC, "com/mojang/blaze3d/systems/RenderSystem",
+                "getInverseViewRotationMatrix", descriptor, false));
+        m.instructions.add(new InsnNode(ARETURN));
+
+        assertEquals(1, apply(c).calls);
+        MethodInsnNode call = find(m, MIGRATE + "MiddleClientCompat", "inverseViewRotationMatrix");
+        assertNotNull(call);
+        assertEquals(INVOKESTATIC, call.getOpcode());
+        assertEquals(descriptor, call.desc);
+    }
+
+    @Test
+    void inverseViewRotationSetterUsesTheCompatibilityBridge() {
+        String matrix = "org/joml/Matrix3f";
+        String descriptor = "(L" + matrix + ";)V";
+        ClassNode c = cls("test/CameraRotationSetter", "java/lang/Object");
+        MethodNode m = method(c, ACC_PUBLIC | ACC_STATIC, "setRotation", descriptor);
+        m.instructions.add(new VarInsnNode(ALOAD, 0));
+        m.instructions.add(new MethodInsnNode(INVOKESTATIC, "com/mojang/blaze3d/systems/RenderSystem",
+                "setInverseViewRotationMatrix", descriptor, false));
+        m.instructions.add(new InsnNode(RETURN));
+
+        assertEquals(1, apply(c).calls);
+        MethodInsnNode call = find(m, MIGRATE + "MiddleClientCompat", "setInverseViewRotationMatrix");
+        assertNotNull(call);
+        assertEquals(INVOKESTATIC, call.getOpcode());
+        assertEquals(descriptor, call.desc);
     }
 
     @Test
@@ -349,8 +415,9 @@ class Mc1201MigrationTest implements Opcodes {
     }
 
     @Test
-    void legacyScoreboardQueriesUseThe1_21_1ScoreHolderApi() {
+    void legacyScoreboardCallsUseThe1_21_1ScoreHolderApi() {
         String scoreboard = "net/minecraft/world/scores/Scoreboard";
+        String serverScoreboard = "net/minecraft/server/ServerScoreboard";
         String objective = "net/minecraft/world/scores/Objective";
         ClassNode c = cls("test/ScoreboardCalls", "java/lang/Object");
 
@@ -371,7 +438,32 @@ class Mc1201MigrationTest implements Opcodes {
                 "(Ljava/lang/String;)Ljava/util/Map;", false));
         scores.instructions.add(new InsnNode(ARETURN));
 
-        assertEquals(2, apply(c).calls);
+        MethodNode hasObjective = method(c, ACC_PUBLIC | ACC_STATIC, "hasObjective",
+                "(L" + serverScoreboard + ";Ljava/lang/String;)Z");
+        hasObjective.instructions.add(new VarInsnNode(ALOAD, 0));
+        hasObjective.instructions.add(new VarInsnNode(ALOAD, 1));
+        hasObjective.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, serverScoreboard, "hasObjective",
+                "(Ljava/lang/String;)Z", false));
+        hasObjective.instructions.add(new InsnNode(IRETURN));
+
+        MethodNode getOrCreateObjective = method(c, ACC_PUBLIC | ACC_STATIC, "getOrCreateObjective",
+                "(L" + serverScoreboard + ";Ljava/lang/String;)L" + objective + ";");
+        getOrCreateObjective.instructions.add(new VarInsnNode(ALOAD, 0));
+        getOrCreateObjective.instructions.add(new VarInsnNode(ALOAD, 1));
+        getOrCreateObjective.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, serverScoreboard, "getOrCreateObjective",
+                "(Ljava/lang/String;)L" + objective + ";", false));
+        getOrCreateObjective.instructions.add(new InsnNode(ARETURN));
+
+        MethodNode reset = method(c, ACC_PUBLIC | ACC_STATIC, "reset",
+                "(L" + serverScoreboard + ";Ljava/lang/String;L" + objective + ";)V");
+        reset.instructions.add(new VarInsnNode(ALOAD, 0));
+        reset.instructions.add(new VarInsnNode(ALOAD, 1));
+        reset.instructions.add(new VarInsnNode(ALOAD, 2));
+        reset.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, serverScoreboard, "resetPlayerScore",
+                "(Ljava/lang/String;L" + objective + ";)V", false));
+        reset.instructions.add(new InsnNode(RETURN));
+
+        assertEquals(5, apply(c).calls);
 
         MethodInsnNode hasHelper = find(has, MIGRATE + "MiddleCompat", "hasPlayerScore");
         assertNotNull(hasHelper);
@@ -382,6 +474,21 @@ class Mc1201MigrationTest implements Opcodes {
         assertNotNull(scoresHelper);
         assertEquals(INVOKESTATIC, scoresHelper.getOpcode());
         assertEquals("(L" + scoreboard + ";Ljava/lang/String;)Ljava/util/Map;", scoresHelper.desc);
+
+        MethodInsnNode hasObjectiveHelper = find(hasObjective, MIGRATE + "MiddleCompat", "hasObjective");
+        assertNotNull(hasObjectiveHelper);
+        assertEquals(INVOKESTATIC, hasObjectiveHelper.getOpcode());
+        assertEquals("(L" + scoreboard + ";Ljava/lang/String;)Z", hasObjectiveHelper.desc);
+
+        MethodInsnNode getOrCreateObjectiveHelper = find(getOrCreateObjective, MIGRATE + "MiddleCompat", "getOrCreateObjective");
+        assertNotNull(getOrCreateObjectiveHelper);
+        assertEquals(INVOKESTATIC, getOrCreateObjectiveHelper.getOpcode());
+        assertEquals("(L" + scoreboard + ";Ljava/lang/String;)L" + objective + ";", getOrCreateObjectiveHelper.desc);
+
+        MethodInsnNode resetHelper = find(reset, MIGRATE + "MiddleCompat", "resetPlayerScore");
+        assertNotNull(resetHelper);
+        assertEquals(INVOKESTATIC, resetHelper.getOpcode());
+        assertEquals("(L" + scoreboard + ";Ljava/lang/String;L" + objective + ";)V", resetHelper.desc);
         verify(c);
     }
 

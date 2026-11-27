@@ -33,6 +33,7 @@ import org.kylepitcock.legacyconnector.loader.shim.ShimIndex;
 import org.kylepitcock.legacyconnector.loader.resource.DataConverter1201;
 import org.kylepitcock.legacyconnector.loader.resource.FunctionConverter1201;
 import org.kylepitcock.legacyconnector.loader.transform.compat.SuperbWarfareArmor1201;
+import org.kylepitcock.legacyconnector.loader.transform.compat.TaczArcana1201;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
@@ -153,6 +154,8 @@ public final class Forge1201Transformer {
             return KUBEJS7_CONSOLE + name.substring(KUBEJS6_CONSOLE.length());
         }
         if (!name.startsWith("net/minecraftforge/")) return classRenames.getOrDefault(name, name);
+        // Some runtime shims retain the original binary name for native method lookups.
+        if (shim.contains(name)) return name;
         String facade = LegacyVersion.V1_20_1.shimPrefix() + name;
         if (shim.contains(facade)) return facade;
         String direct = classRenames.get(name);
@@ -308,7 +311,9 @@ public final class Forge1201Transformer {
         int palladiumCoreOverlayChanges = 0;
         int palladiumCoreLightningMixinChanges = 0;
         int registeredArmorChanges = 0;
+        int taczArcanaCompatibilityChanges = 0;
         boolean adaptRegisteredArmor = SuperbWarfareArmor1201.accepts(ownIds, frameDependencies.keySet());
+        boolean adaptArcana = TaczArcana1201.accepts(ownIds);
         for (ClassNode node : nodes) {
             if (PalladiumKubeJS1201.dropLegacyKubejsClass(node.name)) {
                 palladiumKubejsClassesDropped++;
@@ -318,6 +323,8 @@ public final class Forge1201Transformer {
                 }
                 continue;
             }
+            int taczArcanaChange = adaptArcana ? TaczArcana1201.apply(node) : 0;
+            taczArcanaCompatibilityChanges += taczArcanaChange;
             stringsMapped += mapSrgStrings(node);
             int viaCalls = CallRewrites1201.apply(node, compoundSubclasses);
             int palladiumGeckoAnimationChange = PalladiumGeckoRenderLayer1201.apply(node);
@@ -393,7 +400,11 @@ public final class Forge1201Transformer {
                     + palladiumPlayerSkinFetcherChange + palladiumCommandFunctionChange
                     + palladiumFlightHandlerChange + palladiumCustomProjectileChange
                     + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange + settingsCallbacks
+                    + taczArcanaChange
                     + mixinStats.adapters - previousMixinAdapters);
+        }
+        if (taczArcanaCompatibilityChanges > 0) {
+            result.notes.add("TaCZ Arcana compatibility: native startup configuration, Camera.move, bullet spawn-data, HUD render, SimpleBedrockModel first-person, and connection protocol bridges");
         }
         if (registeredArmorChanges > 0) {
             result.notes.add("Legacy armor material constants adapted to native registered holders: " + registeredArmorChanges + " reads");

@@ -2,6 +2,7 @@ package legacyconnector.v1_20_1.net.minecraftforge.network;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import net.minecraftforge.network.NetworkDirection;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.Event;

@@ -773,6 +773,12 @@ public final class RoundCompat {
         return new net.minecraft.server.packs.PackLocationInfo(id, title, source, java.util.Optional.empty());
     }
 
+    /** Preserves the identity and built-in flag of the old two-argument pack constructor. */
+    public static net.minecraft.server.packs.PackLocationInfo packLocation(String name, boolean builtin) {
+        return packInfo(name, net.minecraft.network.chat.Component.literal(name),
+                builtin ? net.minecraft.server.packs.repository.PackSource.BUILT_IN : net.minecraft.server.packs.repository.PackSource.DEFAULT);
+    }
+
     /** Adapts the 1.20.1 one-method supplier to the two-method 1.21.1 interface. */
     public static net.minecraft.server.packs.repository.Pack.ResourcesSupplier packSupplier(LegacyResourcesSupplier legacy) {
         return new net.minecraft.server.packs.repository.Pack.ResourcesSupplier() {
@@ -799,8 +805,7 @@ public final class RoundCompat {
 
     /** {@code new PathPackResources(String name, Path root, boolean isBuiltin)}. */
     public static net.minecraft.server.packs.PathPackResources newPathPack(String name, java.nio.file.Path root, boolean builtin) {
-        return new net.minecraft.server.packs.PathPackResources(packInfo(name, net.minecraft.network.chat.Component.literal(name),
-                builtin ? net.minecraft.server.packs.repository.PackSource.BUILT_IN : net.minecraft.server.packs.repository.PackSource.DEFAULT), root);
+        return new net.minecraft.server.packs.PathPackResources(packLocation(name, builtin), root);
     }
 
     private static Holder<Enchantment> ench(ResourceKey<Enchantment> key) {

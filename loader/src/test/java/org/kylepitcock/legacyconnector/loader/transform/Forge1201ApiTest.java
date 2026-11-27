@@ -22,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.kylepitcock.legacyconnector.loader.LegacyJar;
 import org.kylepitcock.legacyconnector.loader.LegacyVersion;
 import org.kylepitcock.legacyconnector.loader.shim.ShimIndex;
+import org.kylepitcock.legacyconnector.loader.shim.ShimIndexGenerator;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ConstantDynamic;
 import org.objectweb.asm.Handle;
@@ -82,6 +83,29 @@ class Forge1201ApiTest {
                 transformer.mapClass("thedarkcolour/kotlinforforge/KotlinModLoadingContext"));
         assertEquals("thedarkcolour/kotlinforforge/neoforge/KotlinModLoadingContext$Companion",
                 transformer.mapClass("thedarkcolour/kotlinforforge/KotlinModLoadingContext$Companion"));
+    }
+
+    @Test
+    void keepsIndexedPathAndChannelTypesAtTheirNativeLookupNames(@TempDir Path temp) throws Exception {
+        String channel = "net/minecraftforge/network/simple/SimpleChannel";
+        List<String> names = List.of(channel, channel + "$MessageBuilder",
+                "net/minecraftforge/fml/loading/FMLPaths", "net/minecraftforge/network/NetworkDirection",
+                "net/minecraftforge/network/simple/IndexedMessageCodec$MessageHandler");
+        Path classes = temp.resolve("classes");
+        for (String type : names) {
+            var writer = new ClassWriter(0);
+            writer.visit(Opcodes.V21, Opcodes.ACC_PUBLIC, type, null, "java/lang/Object", null);
+            writer.visitEnd();
+            Path output = classes.resolve(type + ".class");
+            Files.createDirectories(output.getParent());
+            Files.write(output, writer.toByteArray());
+        }
+        Path index = temp.resolve("shim-index.txt");
+        ShimIndexGenerator.main(new String[]{index.toString(), classes.toString()});
+        try (InputStream input = Files.newInputStream(index)) {
+            var transformer = new Forge1201Transformer(ShimIndex.read(input));
+            for (String type : names) assertEquals(type, transformer.mapClass(type));
+        }
     }
 
     @Test

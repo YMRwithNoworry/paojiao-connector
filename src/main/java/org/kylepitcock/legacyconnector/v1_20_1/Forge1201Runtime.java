@@ -10,6 +10,7 @@ import legacyconnector.v1_20_1.net.minecraftforge.common.capabilities.ICapabilit
 import legacyconnector.v1_20_1.net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import legacyconnector.v1_20_1.net.minecraftforge.event.TickEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraftforge.network.simple.SimpleChannel;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.LogicalSide;
 import net.neoforged.fml.ModList;
@@ -57,7 +58,7 @@ public final class Forge1201Runtime {
         modBus.addListener((net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent e) ->
                 legacyconnector.v1_20_1.net.minecraftforge.common.world.ForgeChunkManager.registerControllers(e, modIds));
         org.kylepitcock.legacyconnector.core.pack.GeneratedPack.addContributor(org.kylepitcock.legacyconnector.v1_20_1.migrate.LegacyEnchantments::contribute);
-        modBus.addListener(legacyconnector.v1_20_1.net.minecraftforge.network.simple.SimpleChannel::registerAll);
+        modBus.addListener(SimpleChannel::registerAll);
         modBus.addListener(legacyconnector.v1_20_1.net.minecraftforge.network.event.EventNetworkChannel::registerAll);
         // loot tables are parsed before the server exists: the handlers of legacy mods read enchantments through the registries of this reload
         NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.HIGHEST, (net.neoforged.neoforge.event.LootTableLoadEvent e) ->

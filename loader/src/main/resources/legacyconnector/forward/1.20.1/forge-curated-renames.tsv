@@ -21,7 +21,6 @@ net/minecraftforge/fml/config/ModConfig	net/neoforged/fml/config/ModConfig
 net/minecraftforge/fml/config/ModConfig$Type	net/neoforged/fml/config/ModConfig$Type
 net/minecraftforge/fml/config/IConfigSpec	net/neoforged/fml/config/IConfigSpec
 net/minecraftforge/fml/loading/FMLLoader	net/neoforged/fml/loading/FMLLoader
-net/minecraftforge/fml/loading/FMLPaths	net/neoforged/fml/loading/FMLPaths
 net/minecraftforge/fml/loading/FMLEnvironment	net/neoforged/fml/loading/FMLEnvironment
 net/minecraftforge/fml/ModLoadingContext	net/neoforged/fml/ModLoadingContext
 net/minecraftforge/fml/ModList	net/neoforged/fml/ModList

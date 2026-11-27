@@ -68,8 +68,9 @@ public final class Forge1201MappingCatalog {
     /**
      * Explicit type substitutions reviewed against the Forge 47.x and NeoForge 21.1.x APIs.
      * These are not namespace-wide moves: the config-spec family maps to ModConfigSpec,
-     * RegistryObject maps to Supplier because the audited usage only calls get(), and
-     * IForgeMenuType maps to the target IMenuTypeExtension contract.
+     * RegistryObject maps to Supplier because the audited usage only calls get(),
+     * IForgeMenuType maps to IMenuTypeExtension, and several FML path and network types retain
+     * their Forge binary names because native callers use them for JNI lookups.
      */
     private static final Map<String, String> EXPLICIT_TYPE_REPLACEMENTS = Map.ofEntries(
             Map.entry("net/minecraftforge/common/ForgeConfigSpec", "net/neoforged/neoforge/common/ModConfigSpec"),
@@ -80,19 +81,22 @@ public final class Forge1201MappingCatalog {
             Map.entry("net/minecraftforge/registries/RegistryObject", "java/util/function/Supplier"),
             Map.entry("net/minecraftforge/common/extensions/IForgeMenuType", "net/neoforged/neoforge/common/extensions/IMenuTypeExtension"),
             Map.entry("net/minecraftforge/network/NetworkRegistry", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkRegistry"),
-            Map.entry("net/minecraftforge/network/NetworkDirection", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkDirection"),
+            Map.entry("net/minecraftforge/network/NetworkDirection", "net/minecraftforge/network/NetworkDirection"),
             Map.entry("net/minecraftforge/network/NetworkEvent", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent"),
             Map.entry("net/minecraftforge/network/NetworkEvent$Context", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent$Context"),
             Map.entry("net/minecraftforge/network/PacketDistributor", "legacyconnector/v1_20_1/net/minecraftforge/network/PacketDistributor"),
             Map.entry("net/minecraftforge/network/PacketDistributor$PacketTarget", "legacyconnector/v1_20_1/net/minecraftforge/network/PacketDistributor$PacketTarget"),
-            Map.entry("net/minecraftforge/network/simple/SimpleChannel", "legacyconnector/v1_20_1/net/minecraftforge/network/simple/SimpleChannel"),
-            Map.entry("net/minecraftforge/network/simple/SimpleChannel$MessageBuilder", "legacyconnector/v1_20_1/net/minecraftforge/network/simple/SimpleChannel$MessageBuilder")
+            // These connector implementations keep the Forge binary names used by native callers.
+            Map.entry("net/minecraftforge/fml/loading/FMLPaths", "net/minecraftforge/fml/loading/FMLPaths"),
+            Map.entry("net/minecraftforge/network/simple/SimpleChannel", "net/minecraftforge/network/simple/SimpleChannel"),
+            Map.entry("net/minecraftforge/network/simple/SimpleChannel$MessageBuilder", "net/minecraftforge/network/simple/SimpleChannel$MessageBuilder"),
+            Map.entry("net/minecraftforge/network/simple/IndexedMessageCodec", "net/minecraftforge/network/simple/IndexedMessageCodec"),
+            Map.entry("net/minecraftforge/network/simple/IndexedMessageCodec$MessageHandler", "net/minecraftforge/network/simple/IndexedMessageCodec$MessageHandler")
     );
 
     /**
      * Types whose migration is not a safe package-only rewrite. Their behavior, signatures,
      * ownership, or lifecycle contracts need a dedicated adapter or source-level change.
-     * The audited Forge 1.20.1 SimpleChannel facade types are explicit connector-owned runtime shims.
      */
     private static final Map<String, String> MANUAL_ADAPTERS = Map.ofEntries(
             Map.entry("net/minecraftforge/common/MinecraftForge",

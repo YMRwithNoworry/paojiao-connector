@@ -1,4 +1,4 @@
-package legacyconnector.v1_20_1.net.minecraftforge.network.simple;
+package net.minecraftforge.network.simple;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;

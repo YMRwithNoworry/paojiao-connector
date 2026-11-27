@@ -2,8 +2,8 @@ package legacyconnector.v1_20_1.net.minecraftforge.network;
 
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import legacyconnector.v1_20_1.net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.network.simple.SimpleChannel;
 
 /** Forge 1.20.1's channel factory. Version negotiation is not enforced: NeoForge's payload registration is marked optional. */
 public class NetworkRegistry {

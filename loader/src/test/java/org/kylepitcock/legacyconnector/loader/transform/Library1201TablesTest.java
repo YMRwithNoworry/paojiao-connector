@@ -15,10 +15,13 @@ import org.kylepitcock.legacyconnector.loader.LegacyVersion;
 import org.kylepitcock.legacyconnector.loader.NativeLibraries1201;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.BasicVerifier;
 
 /** The library tables of the 1.20.1 layer ({@code lib-*.tsv}, {@code libraries.tsv}). */
 class Library1201TablesTest implements Opcodes {
@@ -51,6 +54,57 @@ class Library1201TablesTest implements Opcodes {
         assertEquals(1, c.calls);
         MethodInsnNode call = (MethodInsnNode) m.instructions.get(1);
         assertEquals("org/kylepitcock/legacyconnector/v1_20_1/migrate/CuriosCompat", call.owner);
+    }
+
+    @Test
+    void nativeItemFieldLinksWithItsDeclaredSubtypeAndStillReturnsTheRegisteredValue() {
+        String owner = "com/tacz/guns/init/ModItems";
+        String holder = "net/neoforged/neoforge/registries/DeferredHolder";
+        ClassNode n = new ClassNode();
+        n.name = "mod/Uses";
+        n.superName = "java/lang/Object";
+        MethodNode m = new MethodNode(ACC_PUBLIC | ACC_STATIC, "go", "()Ljava/lang/Object;", null, null);
+        m.instructions.add(new FieldInsnNode(GETSTATIC, owner, "MODERN_KINETIC_GUN", "L" + holder + ";"));
+        m.instructions.add(new MethodInsnNode(INVOKEVIRTUAL, holder, "value", "()Ljava/lang/Object;", false));
+        m.instructions.add(new InsnNode(ARETURN));
+        m.maxStack = 1;
+        n.methods.add(m);
+
+        Mc1201Migration.apply(n, new Mc1201Hierarchy().add(n));
+
+        FieldInsnNode field = (FieldInsnNode) m.instructions.getFirst();
+        assertEquals("Lnet/neoforged/neoforge/registries/DeferredItem;", field.desc);
+        MethodInsnNode get = (MethodInsnNode) field.getNext();
+        assertEquals(holder, get.owner);
+        assertEquals("value", get.name);
+    }
+
+    @Test
+    void nativeAttachmentInstallKeepsGunAndAttachmentInOrder() throws Exception {
+        String gun = "com/tacz/guns/api/item/IGun";
+        String stack = "Lnet/minecraft/world/item/ItemStack;";
+        String provider = "Lnet/minecraft/core/HolderLookup$Provider;";
+        var caller = new ClassNode();
+        caller.name = "test/AttachmentMenu";
+        caller.superName = "java/lang/Object";
+        var method = new MethodNode(ACC_STATIC, "install", "(L" + gun + ";" + stack + stack + ")V", null, null);
+        method.maxLocals = 3;
+        method.maxStack = 3;
+        for (int i = 0; i < 3; i++) method.instructions.add(new VarInsnNode(ALOAD, i));
+        var install = new MethodInsnNode(INVOKEINTERFACE, gun, "installAttachment", "(" + stack + stack + ")V", true);
+        method.instructions.add(install);
+        method.instructions.add(new InsnNode(RETURN));
+        caller.methods.add(method);
+
+        assertEquals(1, Mc1201Migration.apply(caller, new Mc1201Hierarchy().add(caller)).calls);
+        assertEquals("(" + provider + stack + stack + ")V", install.desc);
+        var attachment = (VarInsnNode) install.getPrevious();
+        var gunStack = (VarInsnNode) attachment.getPrevious();
+        var context = (MethodInsnNode) gunStack.getPrevious();
+        assertEquals("()" + provider, context.desc);
+        assertEquals(3, gunStack.var);
+        assertEquals(4, attachment.var);
+        new Analyzer<>(new BasicVerifier()).analyze(caller.name, method);
     }
 
     @Test

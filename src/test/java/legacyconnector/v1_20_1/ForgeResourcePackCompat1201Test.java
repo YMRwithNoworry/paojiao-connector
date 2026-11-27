@@ -6,14 +6,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import cpw.mods.jarhandling.SecureJar;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import legacyconnector.v1_20_1.net.minecraftforge.resource.DelegatingPackResources;
 import legacyconnector.v1_20_1.net.minecraftforge.resource.PathPackResources;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.neoforged.neoforgespi.language.IModFileInfo;
 import net.neoforged.neoforgespi.language.IModInfo;
 import net.neoforged.neoforgespi.locating.IModFile;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Tests the Forge 1.20.1 PathPackResources facade against the public 1.21.1 secure-jar API. */
 class ForgeResourcePackCompat1201Test {
@@ -64,6 +73,33 @@ class ForgeResourcePackCompat1201Test {
         } finally {
             pack.close();
             deleteTree(root);
+        }
+    }
+
+    @Test
+    void delegatingPackFindsTheFirstResourceAndKeepsAssetAndDataNamespacesSeparate(@TempDir Path root) throws Exception {
+        Path firstRoot = Files.createDirectories(root.resolve("first/assets/sample/texts"));
+        Files.writeString(firstRoot.resolve("shared.txt"), "first");
+        Path secondRoot = Files.createDirectories(root.resolve("second/assets/sample/texts"));
+        Files.writeString(secondRoot.resolve("shared.txt"), "second");
+        Files.writeString(secondRoot.resolve("fallback.txt"), "fallback");
+        Files.createDirectories(root.resolve("second/data/other"));
+        var metadata = new PackMetadataSection(Component.literal("resources"), 34);
+        var first = new PathPackResources("first", root.resolve("first"));
+        var second = new PathPackResources("second", root.resolve("second"));
+        try (var pack = new DelegatingPackResources("aggregate", true, metadata, List.of(first, second))) {
+            assertEquals("first", readAsset(pack, "texts/shared.txt"));
+            assertEquals("fallback", readAsset(pack, "texts/fallback.txt"));
+            assertEquals(Set.of("sample"), pack.getNamespaces(PackType.CLIENT_RESOURCES));
+            assertEquals(Set.of("other"), pack.getNamespaces(PackType.SERVER_DATA));
+            assertEquals(metadata, pack.getMetadataSection(PackMetadataSection.TYPE));
+        }
+    }
+
+    private static String readAsset(PackResources pack, String path) throws Exception {
+        try (var stream = pack.getResource(PackType.CLIENT_RESOURCES,
+                ResourceLocation.fromNamespaceAndPath("sample", path)).get()) {
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 

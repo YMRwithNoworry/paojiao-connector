@@ -43,6 +43,11 @@ final class Mc1201Migration {
     private static final String MODERN_WIDGET_NARRATION = "updateWidgetNarration";
     private static final String WIDGET_NARRATION_DESC =
             "(Lnet/minecraft/client/gui/narration/NarrationElementOutput;)V";
+    private static final String SOUND = "net/minecraft/client/resources/sounds/Sound";
+    private static final String LEGACY_SOUND = Mc1201Tables.HELPER_PACKAGE + "LegacySound1201";
+    private static final String LEGACY_SOUND_CTOR_DESC =
+            "(Ljava/lang/String;Lnet/minecraft/util/valueproviders/SampledFloat;Lnet/minecraft/util/valueproviders/SampledFloat;"
+                    + "ILnet/minecraft/client/resources/sounds/Sound$Type;ZZI)V";
 
     /** What {@link #apply} did, per kind (for the report line). */
     static final class Counts {
@@ -53,10 +58,11 @@ final class Mc1201Migration {
         int providerCalls;
         int selectionListPositionCalls;
         int widgetNarrationOverrides;
+        int soundSubclassBridges;
 
         int total() {
             return calls + constructors + fields + bridges + providerCalls + selectionListPositionCalls
-                    + widgetNarrationOverrides;
+                    + widgetNarrationOverrides + soundSubclassBridges;
         }
 
         void add(Counts o) {
@@ -67,6 +73,7 @@ final class Mc1201Migration {
             providerCalls += o.providerCalls;
             selectionListPositionCalls += o.selectionListPositionCalls;
             widgetNarrationOverrides += o.widgetNarrationOverrides;
+            soundSubclassBridges += o.soundSubclassBridges;
         }
 
         @Override
@@ -75,6 +82,7 @@ final class Mc1201Migration {
                     + selectionListPositionCalls + " selection-list position call(s) renamed to setX, "
                     + widgetNarrationOverrides + " AbstractWidget narration override(s) renamed to updateWidgetNarration, "
                     + constructors + " constructor(s) made factory calls, "
+                    + soundSubclassBridges + " legacy Sound subclass(es) bridged, "
                     + fields + " static field read(s) converted, "
                     + bridges + " bridge method(s) for changed overrides, "
                     + providerCalls + " call(s) given the registry provider";
@@ -91,6 +99,7 @@ final class Mc1201Migration {
         Counts c = new Counts();
         renameWidgetNarrationOverride(node, h, c);
         renameOverrides(node, h, t, c);
+        c.soundSubclassBridges += bridgeLegacySoundSubclass(node);
         swapMobBucketSuper(node);
         renameBusConstant(node);
         dropEmptySubscriber(node);
@@ -105,6 +114,33 @@ final class Mc1201Migration {
             addConditionCodec(node, c);
         }
         return c;
+    }
+
+    /**
+     * A 1.20.1 subclass of Sound invokes Sound's string-based constructor with
+     * invokespecial, which cannot become the static constructor factory used
+     * for ordinary new Sound expressions. Route that superclass call through
+     * the legacy-shaped runtime subclass instead.
+     */
+    private static int bridgeLegacySoundSubclass(ClassNode node) {
+        if (!SOUND.equals(node.superName)) return 0;
+        boolean changed = false;
+        for (MethodNode method : node.methods) {
+            if (!"<init>".equals(method.name)) continue;
+            for (AbstractInsnNode instruction : method.instructions) {
+                if (instruction instanceof MethodInsnNode call
+                        && call.getOpcode() == Opcodes.INVOKESPECIAL
+                        && SOUND.equals(call.owner)
+                        && "<init>".equals(call.name)
+                        && LEGACY_SOUND_CTOR_DESC.equals(call.desc)) {
+                    call.owner = LEGACY_SOUND;
+                    changed = true;
+                }
+            }
+        }
+        if (!changed) return 0;
+        node.superName = LEGACY_SOUND;
+        return 1;
     }
 
     /**
@@ -553,7 +589,8 @@ final class Mc1201Migration {
 
     /**
      * {@code =args}: the call keeps its name and receiver, its arguments are produced again from the old ones. The helper-name column lists one token per
-     * new parameter: {@code N} (old argument N unchanged), {@code Class.method@a+b} (a static helper taking old arguments a and b, returning the new parameter),
+     * new parameter: {@code N} (old argument N unchanged), {@code Class.method@a+b} (a static helper taking old arguments a and b),
+     * or {@code Class.method@} (a static helper taking no arguments). Each helper returns the new parameter,
      * and the helper-descriptor column is the new descriptor. The old arguments are spilled to fresh locals first, so any argument can be dropped, reordered or
      * converted (super constructors that lost an id, took a {@code Holder}...).
      */
@@ -580,10 +617,12 @@ final class Mc1201Migration {
             }
             String helper = tok.substring(0, at);
             StringBuilder desc = new StringBuilder("(");
-            for (String a : tok.substring(at + 1).split("\\+")) {
-                int i = Integer.parseInt(a);
-                il.add(new VarInsnNode(old[i].getOpcode(Opcodes.ILOAD), slot[i]));
-                desc.append(old[i].getDescriptor());
+            if (at + 1 < tok.length()) {
+                for (String a : tok.substring(at + 1).split("\\+")) {
+                    int i = Integer.parseInt(a);
+                    il.add(new VarInsnNode(old[i].getOpcode(Opcodes.ILOAD), slot[i]));
+                    desc.append(old[i].getDescriptor());
+                }
             }
             desc.append(')').append(now[j].getDescriptor());
             int dot = helper.lastIndexOf('.');

@@ -14,6 +14,7 @@ import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -47,6 +48,26 @@ import net.neoforged.neoforge.fluids.FluidStack;
  */
 public final class ApiCompat {
     private ApiCompat() {}
+
+    private static final LegacyParticleDeserializer<net.minecraft.core.particles.ParticleOptions> PARTICLE_DESERIALIZER =
+            new LegacyParticleDeserializer<>() {
+                @Override
+                public net.minecraft.core.particles.ParticleOptions fromCommand(
+                        net.minecraft.core.particles.ParticleType<net.minecraft.core.particles.ParticleOptions> type,
+                        com.mojang.brigadier.StringReader reader) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+                    return MiddleCompat.readParticleOptions(type, reader);
+                }
+
+                @Override
+                public net.minecraft.core.particles.ParticleOptions fromNetwork(
+                        net.minecraft.core.particles.ParticleType<net.minecraft.core.particles.ParticleOptions> type,
+                        FriendlyByteBuf buffer) {
+                    if ((Object) type instanceof net.minecraft.core.particles.SimpleParticleType simple) return simple;
+                    RegistryFriendlyByteBuf registryBuffer = buffer instanceof RegistryFriendlyByteBuf existing
+                            ? existing : new RegistryFriendlyByteBuf(buffer, MigrateContext.registries());
+                    return type.streamCodec().decode(registryBuffer);
+                }
+            };
 
     // ------------------------------------------------------------------ NBT
 
@@ -192,9 +213,11 @@ public final class ApiCompat {
         return options instanceof net.minecraft.core.particles.SimpleParticleType s ? s : net.minecraft.core.particles.ParticleTypes.FLAME;
     }
 
-    /** {@code ParticleType.getDeserializer()}: nothing reads it any more. */
-    public static LegacyParticleDeserializer<?> noDeserializer(net.minecraft.core.particles.ParticleType<?> type) {
-        return null;
+    /** Recreates the command and network deserializer that 1.21.1 removed from particle types. */
+    @SuppressWarnings("unchecked")
+    public static <T extends net.minecraft.core.particles.ParticleOptions> LegacyParticleDeserializer<T> noDeserializer(
+            net.minecraft.core.particles.ParticleType<T> type) {
+        return (LegacyParticleDeserializer<T>) PARTICLE_DESERIALIZER;
     }
 
     /** A {@code ParticleType.codec()} of the old shape (a plain codec) as the registry-aware stream codec the type needs on the wire. */

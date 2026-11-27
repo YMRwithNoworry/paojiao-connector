@@ -40,7 +40,7 @@ final class Forge1201MappingCatalogTest {
                 "net/minecraftforge/event/entity/living/LivingHurtEvent");
 
         assertEquals(Forge1201MappingCatalog.Kind.EXPLICIT_TYPE_REPLACEMENT, channel.kind());
-        assertEquals("legacyconnector/v1_20_1/net/minecraftforge/network/simple/SimpleChannel",
+        assertEquals("net/minecraftforge/network/simple/SimpleChannel",
                 channel.targetInternalName());
         assertEquals(Forge1201MappingCatalog.Kind.MANUAL_ADAPTER_REQUIRED, damage.kind());
         assertNull(damage.targetInternalName());
@@ -118,13 +118,16 @@ final class Forge1201MappingCatalogTest {
                 java.util.Map.entry("net/minecraftforge/registries/RegistryObject", "java/util/function/Supplier"),
                 java.util.Map.entry("net/minecraftforge/common/extensions/IForgeMenuType", "net/neoforged/neoforge/common/extensions/IMenuTypeExtension"),
                 java.util.Map.entry("net/minecraftforge/network/NetworkRegistry", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkRegistry"),
-                java.util.Map.entry("net/minecraftforge/network/NetworkDirection", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkDirection"),
+                java.util.Map.entry("net/minecraftforge/network/NetworkDirection", "net/minecraftforge/network/NetworkDirection"),
                 java.util.Map.entry("net/minecraftforge/network/NetworkEvent", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent"),
                 java.util.Map.entry("net/minecraftforge/network/NetworkEvent$Context", "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent$Context"),
                 java.util.Map.entry("net/minecraftforge/network/PacketDistributor", "legacyconnector/v1_20_1/net/minecraftforge/network/PacketDistributor"),
                 java.util.Map.entry("net/minecraftforge/network/PacketDistributor$PacketTarget", "legacyconnector/v1_20_1/net/minecraftforge/network/PacketDistributor$PacketTarget"),
-                java.util.Map.entry("net/minecraftforge/network/simple/SimpleChannel", "legacyconnector/v1_20_1/net/minecraftforge/network/simple/SimpleChannel"),
-                java.util.Map.entry("net/minecraftforge/network/simple/SimpleChannel$MessageBuilder", "legacyconnector/v1_20_1/net/minecraftforge/network/simple/SimpleChannel$MessageBuilder")
+                java.util.Map.entry("net/minecraftforge/fml/loading/FMLPaths", "net/minecraftforge/fml/loading/FMLPaths"),
+                java.util.Map.entry("net/minecraftforge/network/simple/SimpleChannel", "net/minecraftforge/network/simple/SimpleChannel"),
+                java.util.Map.entry("net/minecraftforge/network/simple/SimpleChannel$MessageBuilder", "net/minecraftforge/network/simple/SimpleChannel$MessageBuilder"),
+                java.util.Map.entry("net/minecraftforge/network/simple/IndexedMessageCodec", "net/minecraftforge/network/simple/IndexedMessageCodec"),
+                java.util.Map.entry("net/minecraftforge/network/simple/IndexedMessageCodec$MessageHandler", "net/minecraftforge/network/simple/IndexedMessageCodec$MessageHandler")
         );
 
         assertEquals(replacements, Forge1201MappingCatalog.explicitTypeReplacements());
@@ -137,7 +140,6 @@ final class Forge1201MappingCatalogTest {
             assertNull(Forge1201MappingCatalog.manualAdapterReason(source), source);
         });
 
-        assertEquals(15, replacements.size());
         org.junit.jupiter.api.Assertions.assertFalse(
                 Forge1201MappingCatalog.isNeoForgeRelocationTarget("java/util/function/Supplier"));
     }

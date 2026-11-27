@@ -1,4 +1,4 @@
-package legacyconnector.v1_20_1.net.minecraftforge.network.simple;
+package net.minecraftforge.network.simple;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +9,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import legacyconnector.v1_20_1.net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkDirection;
 import legacyconnector.v1_20_1.net.minecraftforge.network.NetworkEvent;
 import legacyconnector.v1_20_1.net.minecraftforge.network.PacketDistributor;
 import net.minecraft.network.FriendlyByteBuf;
@@ -24,6 +24,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * Forge 1.20.1's {@code SimpleChannel} over NeoForge 1.21.1's payload system. A channel is one payload type (the channel's name as its id); a message is
  * the message index plus whatever the mod's own encoder writes, so the mod's {@code encode}/{@code decode} methods work unchanged. The payload types are
  * registered when NeoForge fires {@link RegisterPayloadHandlersEvent} ({@link #registerAll}); messages may be added to a channel until then and after.
+ * The Forge binary name is part of the ABI for mods that look up channel methods from native code.
  */
 public class SimpleChannel {
     private static final List<SimpleChannel> CHANNELS = new ArrayList<>();
@@ -41,6 +42,10 @@ public class SimpleChannel {
         synchronized (CHANNELS) {
             CHANNELS.add(this);
         }
+    }
+    /** Creates a channel used as an ABI bridge for native payload classes from a newer mod version. */
+    public static SimpleChannel legacy(ResourceLocation name) {
+        return new SimpleChannel(name, () -> "1", ignored -> true, ignored -> true);
     }
 
     public ResourceLocation getName() {
@@ -130,6 +135,10 @@ public class SimpleChannel {
     }
 
     public void sendToServer(Object message) {
+        if (message instanceof CustomPacketPayload payload) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(payload);
+            return;
+        }
         net.neoforged.neoforge.network.PacketDistributor.sendToServer(wrap(message));
     }
 

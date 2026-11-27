@@ -16,6 +16,7 @@ import java.util.TreeSet;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.kylepitcock.legacyconnector.loader.shim.ShimIndexGenerator;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -105,12 +106,13 @@ public final class Gap1201 {
     private static void index(Path jar, Map<String, Cls> into) throws IOException {
         if (Files.isDirectory(jar)) {
             if (nestedMode == 2) return;
-            // compiled facade classes (legacyconnector/v1_20_1/...): the Forge API the layer provides itself
+            // Compiled Forge facade classes and migration helpers provided by the runtime.
             try (Stream<Path> files = Files.walk(jar)) {
                 for (Path f : files.filter(x -> x.toString().endsWith(".class")).toList()) {
                     String rel = jar.relativize(f).toString().replace((char) 92, '/');
-                    // the facades, and the migrate helpers the translated jars call (org/kylepitcock/legacyconnector/v1_20_1/migrate: they exist at run time)
-                    if (!rel.startsWith("legacyconnector/v1_20_1/") && !rel.startsWith("org/kylepitcock/legacyconnector/v1_20_1/")) continue;
+                    if (!rel.startsWith("legacyconnector/v1_20_1/") && !rel.startsWith("org/kylepitcock/legacyconnector/v1_20_1/")
+                            && !rel.startsWith(ShimIndexGenerator.ORIGINAL_NETWORK_PACKAGE)
+                            && !rel.startsWith(ShimIndexGenerator.ORIGINAL_FML_LOADING_PACKAGE)) continue;
                     ClassNode n = new ClassNode();
                     new ClassReader(Files.readAllBytes(f)).accept(n, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                     Cls c = new Cls();
@@ -195,6 +197,7 @@ public final class Gap1201 {
         if (name == null) return null;
         if (name.startsWith("[")) return desc(name);
         if (name.startsWith("net/minecraftforge/") || name.startsWith("cpw/")) {
+            if (target.containsKey(name)) return name;
             String facade = "legacyconnector/v1_20_1/" + name;
             if (target.containsKey(facade)) return facade;
         }

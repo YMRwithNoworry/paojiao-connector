@@ -1,6 +1,7 @@
-package legacyconnector.v1_20_1.net.minecraftforge.network;
+package net.minecraftforge.network;
 
 import legacyconnector.v1_20_1.net.minecraftforge.network.event.EventNetworkChannel;
+import legacyconnector.v1_20_1.net.minecraftforge.network.ICustomPacket;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;

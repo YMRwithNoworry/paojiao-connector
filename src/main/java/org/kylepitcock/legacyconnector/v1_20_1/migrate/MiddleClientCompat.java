@@ -3,6 +3,7 @@ package org.kylepitcock.legacyconnector.v1_20_1.migrate;
 import java.util.HashMap;
 import java.util.Map;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
+import org.joml.Matrix3f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -30,6 +31,7 @@ import org.kylepitcock.legacyconnector.mixin.ModelDataManagerAccess;
  * helpers never link client classes.
  */
 public final class MiddleClientCompat {
+    private static volatile Matrix3f inverseViewRotation;
     private MiddleClientCompat() {}
 
     /** The old User accessor built a profile from the session identity without contacting the profile service. */
@@ -327,6 +329,18 @@ public final class MiddleClientCompat {
     public static Sound newSound(String id, SampledFloat volume, SampledFloat pitch, int weight, Sound.Type type,
             boolean stream, boolean preload, int attenuationDistance) {
         return new Sound(ResourceLocation.parse(id), volume, pitch, weight, type, stream, preload, attenuationDistance);
+    }
+
+    /** Returns the camera-to-world rotation formerly exposed by RenderSystem. */
+    public static Matrix3f inverseViewRotationMatrix() {
+        Matrix3f rotation = inverseViewRotation;
+        return rotation != null ? new Matrix3f(rotation)
+                : new Matrix3f().rotation(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());
+    }
+
+    /** Retains the matrix set by legacy render code until its next update. */
+    public static void setInverseViewRotationMatrix(Matrix3f rotation) {
+        inverseViewRotation = rotation == null ? null : new Matrix3f(rotation);
     }
 
     public static String modelNamespace(net.minecraft.client.resources.model.ModelResourceLocation location) {

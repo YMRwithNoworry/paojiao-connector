@@ -15,16 +15,14 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Index of every class the runtime shim provides (everything under {@code legacyconnector/}) plus the modern
- * classes it extends. Generated at build time by {@link ShimIndexGenerator} and shipped as
- * {@code legacyconnector/shim-index.txt} inside the runtime jar.
+ * Index of the legacy API classes the runtime provides, including selected Forge classes that retain their original names for native ABI compatibility.
+ * Generated at build time by the index generator and shipped as {@code legacyconnector/shim-index.txt} inside the runtime jar.
  *
  * <p>Text format, one record per line:</p>
  * <pre>
  * C name super iface1,iface2|- access
  * M name desc access
  * F name desc access
- * </pre>
  */
 public final class ShimIndex {
     public static final String RESOURCE = "legacyconnector/shim-index.txt";

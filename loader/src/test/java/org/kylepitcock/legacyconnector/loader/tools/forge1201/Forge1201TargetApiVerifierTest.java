@@ -158,7 +158,7 @@ final class Forge1201TargetApiVerifierTest {
         String sourceContext = "net/minecraftforge/network/NetworkEvent$Context";
         String sourceDirection = "net/minecraftforge/network/NetworkDirection";
         String targetContext = "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkEvent$Context";
-        String targetDirection = "legacyconnector/v1_20_1/net/minecraftforge/network/NetworkDirection";
+        String targetDirection = sourceDirection;
         String memberDescriptor = "(L" + targetDirection + ";)V";
         String fieldDescriptor = "L" + targetDirection + ";";
 

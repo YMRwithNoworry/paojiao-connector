@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraftforge.network.NetworkDirection;
 
 /**
  * Forge 1.20.1's way to pick the receivers of a {@code SimpleChannel} message ({@code PacketDistributor.PLAYER.with(() -> player)}); each distributor
