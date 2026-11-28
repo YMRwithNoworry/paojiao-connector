@@ -257,6 +257,16 @@ public final class Forge1201Transformer {
         for (var m : jar.mods) ownIds.add(m.modernId());
         boolean ownUnit = false;
         for (String id : ownIds) if (plan.unit(VER, id) != null) ownUnit = true;
+        Map<String, String> cfgRename = new HashMap<>();
+        if (ownUnit) {
+            String suffix = "_l" + VER.id().replaceAll("[^a-z0-9]", "");
+            for (var e : other.entrySet()) {
+                String n = e.getKey();
+                if (n.indexOf('/') < 0 && n.endsWith(".json") && looksLikeMixinConfig(e.getValue())) {
+                    cfgRename.put(n, SideBySide.mixinConfigName(n, suffix));
+                }
+            }
+        }
         Mapper mapper = new Mapper();
         Map<String, byte[]> outClasses = new LinkedHashMap<>();
         int stringsMapped = 0;
@@ -469,7 +479,7 @@ public final class Forge1201Transformer {
         if (modCtors > 0) result.notes.add("@Mod constructor taking FMLJavaModLoadingContext: a (IEventBus, ModContainer) constructor was generated for NeoForge");
         int subscribersMoved = Subscribers1201.apply(nodes);
         if (subscribersMoved > 0) result.notes.add("Event subscriber classes with instance handlers: " + subscribersMoved + " registered by the main class for their static handlers (Forge ignored the instance ones)");
-        if (!plan.isEmpty()) for (ClassNode node : nodes) isolate(node);
+        if (!plan.isEmpty()) for (ClassNode node : nodes) isolate(node, cfgRename);
         if (ownUnit) for (ClassNode node : nodes) renameInjectorHandlers(node, VER.id().replaceAll("[^a-z0-9]", ""));
         // the soft link runs when every class of the jar has been migrated: references to the mod's own members are judged by their final declarations
         for (ClassNode node : nodes) {
@@ -517,7 +527,6 @@ public final class Forge1201Transformer {
         if (stringsMapped > 0) result.notes.add(stringsMapped + " reflection string(s) with SRG names now use Mojang names");
 
         Map<String, byte[]> outResources = new LinkedHashMap<>();
-        Map<String, String> cfgRename = new HashMap<>();
         if (palladiumSuitStandChanges > 0) {
             result.notes.add("Palladium SuitStand migrated to the 1.21.1 SynchedEntityData.Builder lifecycle; DATA_CLIENT_FLAGS setup deferred until after the ArmorStand constructor: "
                     + palladiumSuitStandChanges + " entity class(es)");
@@ -569,13 +578,6 @@ public final class Forge1201Transformer {
         if (palladiumPlayerSkinFetcherChanges > 0) {
             result.notes.add("Palladium PlayerSkinFetcher migrated from the removed SkinTextureCallback to SkinManager.getOrLoad / CompletableFuture.whenComplete: "
                     + palladiumPlayerSkinFetcherChanges + " fetcher class(es)");
-        }
-        if (ownUnit) {
-            String suffix = "_l" + VER.id().replaceAll("[^a-z0-9]", "");
-            for (var e : other.entrySet()) {
-                String n = e.getKey();
-                if (n.indexOf('/') < 0 && n.endsWith(".json") && looksLikeMixinConfig(e.getValue())) cfgRename.put(n, SideBySide.mixinConfigName(n, suffix));
-            }
         }
         for (var e : other.entrySet()) {
             String name = e.getKey();
@@ -661,6 +663,13 @@ public final class Forge1201Transformer {
         }
 
         Manifest outManifest = LegacyJarTransformer.cleanManifest(manifest, jar);
+        if (!plan.isEmpty()) {
+            String connector = outManifest.getMainAttributes().getValue("MixinConnector");
+            if (connector != null) {
+                String moved = plan.mapString(VER, connector);
+                if (!moved.equals(connector)) outManifest.getMainAttributes().putValue("MixinConnector", moved);
+            }
+        }
         String originalSha = Provenance.sha256Hex(jar.existing());
         Provenance.addManifest(outManifest.getMainAttributes(), jar, originalSha);
         outResources.put(Provenance.RESOURCE, Provenance.json(jar, originalSha, LegacyJarTransformer.TRANSFORMER_VERSION));
@@ -674,12 +683,12 @@ public final class Forge1201Transformer {
     private static final String SUBSCRIBER_DESC = "Lnet/neoforged/fml/common/Mod$EventBusSubscriber;";
 
     /** Relocates string constants and annotation values that name isolated classes, and swaps the mod id of an isolated library's own annotations. */
-    private void isolate(ClassNode node) {
+    private void isolate(ClassNode node, Map<String, String> cfgRename) {
         for (MethodNode m : node.methods) {
             if (m.instructions != null) {
                 for (AbstractInsnNode in : m.instructions) {
                     if (in instanceof LdcInsnNode l && l.cst instanceof String s) {
-                        String moved = plan.mapString(VER, s);
+                        String moved = isolateString(s, cfgRename);
                         if (!moved.equals(s)) {
                             l.cst = moved;
                             continue;
@@ -692,47 +701,61 @@ public final class Forge1201Transformer {
                     }
                 }
             }
-            annotations(m.visibleAnnotations);
-            annotations(m.invisibleAnnotations);
+            annotations(m.visibleAnnotations, cfgRename);
+            annotations(m.invisibleAnnotations, cfgRename);
         }
         for (org.objectweb.asm.tree.FieldNode f : node.fields) {
-            if (f.value instanceof String s) f.value = plan.mapString(VER, s);
-            annotations(f.visibleAnnotations);
-            annotations(f.invisibleAnnotations);
+            if (f.value instanceof String s) f.value = isolateString(s, cfgRename);
+            annotations(f.visibleAnnotations, cfgRename);
+            annotations(f.invisibleAnnotations, cfgRename);
         }
-        annotations(node.visibleAnnotations);
-        annotations(node.invisibleAnnotations);
+        annotations(node.visibleAnnotations, cfgRename);
+        annotations(node.invisibleAnnotations, cfgRename);
     }
 
-    private void annotations(List<org.objectweb.asm.tree.AnnotationNode> list) {
+    private String isolateString(String value, Map<String, String> cfgRename) {
+        String config = cfgRename.get(value);
+        return config == null ? plan.mapString(VER, value) : config;
+    }
+
+    private void annotations(List<org.objectweb.asm.tree.AnnotationNode> list, Map<String, String> cfgRename) {
         if (list == null) return;
         for (var a : list) {
             String idKey = MOD_DESC.equals(a.desc) ? "value" : SUBSCRIBER_DESC.equals(a.desc) ? "modid" : null;
-            annotationValues(a.values, idKey);
+            // ASM normally supplies an ArrayList here, but a few Forge jars build
+            // annotation values with List.of(...). The isolation pass rewrites
+            // those values in place, so make the container mutable first.
+            if (a.values != null && !(a.values instanceof ArrayList<?>)) a.values = new ArrayList<>(a.values);
+            annotationValues(a.values, idKey, cfgRename);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void annotationValues(List<Object> values, String idKey) {
+    private void annotationValues(List<Object> values, String idKey, Map<String, String> cfgRename) {
         if (values == null) return;
         for (int i = 0; i + 1 < values.size(); i += 2) {
             Object v = values.get(i + 1);
             if (v instanceof String s) {
-                String moved = plan.mapString(VER, s);
+                String moved = isolateString(s, cfgRename);
                 if (idKey != null && idKey.equals(values.get(i)) && ownIds.contains(s.toLowerCase(java.util.Locale.ROOT))) {
                     SideBySide.Unit u = plan.unit(VER, s.toLowerCase(java.util.Locale.ROOT));
                     if (u != null) moved = u.newId();
                 }
                 values.set(i + 1, moved);
             } else if (v instanceof List<?> l) {
-                List<Object> copy = (List<Object>) l;
+                List<Object> copy = new ArrayList<>((List<Object>) l);
+                values.set(i + 1, copy);
                 for (int k = 0; k < copy.size(); k++) {
                     Object x = copy.get(k);
-                    if (x instanceof String s) copy.set(k, plan.mapString(VER, s));
-                    else if (x instanceof org.objectweb.asm.tree.AnnotationNode an) annotationValues(an.values, null);
+                    if (x instanceof String s) copy.set(k, isolateString(s, cfgRename));
+                    else if (x instanceof org.objectweb.asm.tree.AnnotationNode an) {
+                        if (an.values != null && !(an.values instanceof ArrayList<?>)) an.values = new ArrayList<>(an.values);
+                        annotationValues(an.values, null, cfgRename);
+                    }
                 }
             } else if (v instanceof org.objectweb.asm.tree.AnnotationNode an) {
-                annotationValues(an.values, null);
+                if (an.values != null && !(an.values instanceof ArrayList<?>)) an.values = new ArrayList<>(an.values);
+                annotationValues(an.values, null, cfgRename);
             }
         }
     }
