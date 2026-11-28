@@ -274,10 +274,9 @@ public final class SrpcotesiaApiCompat {
         int changes = adaptCotesiaAnimationPaths(classes);
         for (Map.Entry<String, String> entry : COTESIA_ANIMATION_PATHS.entrySet()) {
             if (!entry.getKey().startsWith("assets/")) continue;
-            byte[] animation = resources.remove(entry.getKey());
+            byte[] animation = resources.get(entry.getKey());
             if (animation == null) continue;
-            resources.putIfAbsent(entry.getValue(), animation);
-            changes++;
+            if (resources.putIfAbsent(entry.getValue(), animation) == null) changes++;
         }
         byte[] inactiveSaltine = resources.get(COTESIA_SALTINE_INACTIVE_TEXTURE);
         if (inactiveSaltine != null && !resources.containsKey(COTESIA_SALTINE_TEXTURE)) {

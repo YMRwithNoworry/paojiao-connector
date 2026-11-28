@@ -290,9 +290,9 @@ class SrpcotesiaApiCompatTest {
         assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/factory.animation.json"));
         assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/hi_enchanting_table.animation.json"));
         assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/osmosis.animation.json"));
-        assertFalse(resources.containsKey("assets/srpcotesia/animations/factory.anim.json"));
-        assertFalse(resources.containsKey("assets/srpcotesia/animations/hi_enchanting_table.anim.json"));
-        assertFalse(resources.containsKey("assets/srpcotesia/animations/osmosis.anim.json"));
+        assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/factory.anim.json"));
+        assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/hi_enchanting_table.anim.json"));
+        assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/osmosis.anim.json"));
         String adaptedAnimation = new String(resources.get("assets/srpcotesia/animations/grep.animation.json"),
                 java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(adaptedAnimation.contains("query.ground_speed"));
