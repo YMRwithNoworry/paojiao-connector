@@ -273,6 +273,10 @@ class SrpcotesiaApiCompatTest {
                 + "\"eye\":{\"position\":{\"vector\":[0,\"eye_y\",\"eye_z\"]}}}}}}";
         resources.put("assets/srpcotesia/animations/grep.animation.json",
                 grepAnimation.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        byte[] factoryAnimation = "{\"animations\":{}}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        resources.put("assets/srpcotesia/animations/factory.anim.json", factoryAnimation);
+        resources.put("assets/srpcotesia/animations/hi_enchanting_table.anim.json", factoryAnimation);
+        resources.put("assets/srpcotesia/animations/osmosis.anim.json", factoryAnimation);
         String model = "{\"textures\":{\"particle\":\"srparasites:blocks/parasitetrunk_tree_side\","
                 + "\"down\":\"srparasites:blocks/parasitetrunk_tree_down\",\"up\":\"srpcotesia:blocks/inf_crafting_table_up\"}}";
         resources.put("assets/srpcotesia/models/block/inf_crafting_table.json", model.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -281,8 +285,14 @@ class SrpcotesiaApiCompatTest {
         oldBiome.name = OLD_BIOME;
         peers.put(OLD_BIOME, ClassInfo.of(oldBiome));
 
-        assertEquals(3, SrpcotesiaApiCompat.apply(cotesiaJar(), new LinkedHashMap<>(), resources, peers, newRemapper()));
+        assertEquals(6, SrpcotesiaApiCompat.apply(cotesiaJar(), new LinkedHashMap<>(), resources, peers, newRemapper()));
         assertArrayEquals(inactiveSaltine, resources.get("assets/srpcotesia/textures/blocks/saltine.png"));
+        assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/factory.animation.json"));
+        assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/hi_enchanting_table.animation.json"));
+        assertArrayEquals(factoryAnimation, resources.get("assets/srpcotesia/animations/osmosis.animation.json"));
+        assertFalse(resources.containsKey("assets/srpcotesia/animations/factory.anim.json"));
+        assertFalse(resources.containsKey("assets/srpcotesia/animations/hi_enchanting_table.anim.json"));
+        assertFalse(resources.containsKey("assets/srpcotesia/animations/osmosis.anim.json"));
         String adaptedAnimation = new String(resources.get("assets/srpcotesia/animations/grep.animation.json"),
                 java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(adaptedAnimation.contains("query.ground_speed"));
@@ -296,6 +306,31 @@ class SrpcotesiaApiCompatTest {
                 java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
         assertEquals("srparasites:blocks/parasitetrunk_tree", adapted.getAsJsonObject("textures").get("down").getAsString());
         assertEquals("srparasites:blocks/parasitetrunk_tree_side", adapted.getAsJsonObject("textures").get("particle").getAsString());
+    }
+
+    @Test
+    void updatesCotesiaAnimationResourcePathsInLegacyModelClasses() {
+        Map<String, byte[]> classes = new LinkedHashMap<>();
+        ClassNode model = new ClassNode(Opcodes.ASM9);
+        model.version = Opcodes.V1_8;
+        model.access = Opcodes.ACC_PUBLIC;
+        model.name = "com/srpcotesia/client/model/item/ModelParasiteFactory";
+        model.superName = "java/lang/Object";
+        MethodNode path = new MethodNode(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "path", "()Ljava/lang/String;", null, null);
+        path.instructions.add(new org.objectweb.asm.tree.LdcInsnNode("animations/factory.anim.json"));
+        path.instructions.add(new InsnNode(Opcodes.ARETURN));
+        path.maxStack = 1;
+        model.methods.add(path);
+        classes.put(model.name, writeNode(model));
+
+        assertEquals(1, SrpcotesiaApiCompat.apply(cotesiaJar(), classes, new LinkedHashMap<>(), Map.of(), newRemapper()));
+        ClassNode adapted = new ClassNode(Opcodes.ASM9);
+        new ClassReader(classes.get(model.name)).accept(adapted, 0);
+        assertTrue(adapted.methods.stream().flatMap(method -> java.util.stream.StreamSupport.stream(
+                java.util.Spliterators.spliteratorUnknownSize(method.instructions.iterator(), 0), false))
+                .filter(org.objectweb.asm.tree.LdcInsnNode.class::isInstance)
+                .map(org.objectweb.asm.tree.LdcInsnNode.class::cast)
+                .anyMatch(ldc -> "animations/factory.animation.json".equals(ldc.cst)));
     }
 
     @Test

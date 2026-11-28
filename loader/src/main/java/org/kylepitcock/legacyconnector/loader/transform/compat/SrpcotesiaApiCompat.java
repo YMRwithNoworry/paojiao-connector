@@ -28,6 +28,7 @@ import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.LocalVariableAnnotationNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -50,6 +51,16 @@ public final class SrpcotesiaApiCompat {
     private static final String COTESIA_SALTINE_INACTIVE_TEXTURE = "assets/srpcotesia/textures/blocks/saltine_inactive.png";
     private static final String COTESIA_INF_CRAFTING_TABLE_MODEL = "assets/srpcotesia/models/block/inf_crafting_table.json";
     private static final String COTESIA_GREP_ANIMATION = "assets/srpcotesia/animations/grep.animation.json";
+    private static final Map<String, String> COTESIA_ANIMATION_PATHS = Map.of(
+            "animations/factory.anim.json", "animations/factory.animation.json",
+            "animations/hi_enchanting_table.anim.json", "animations/hi_enchanting_table.animation.json",
+            "animations/osmosis.anim.json", "animations/osmosis.animation.json",
+            "assets/srpcotesia/animations/factory.anim.json", "assets/srpcotesia/animations/factory.animation.json",
+            "assets/srpcotesia/animations/hi_enchanting_table.anim.json", "assets/srpcotesia/animations/hi_enchanting_table.animation.json",
+            "assets/srpcotesia/animations/osmosis.anim.json", "assets/srpcotesia/animations/osmosis.animation.json",
+            "srpcotesia:animations/factory.anim.json", "srpcotesia:animations/factory.animation.json",
+            "srpcotesia:animations/hi_enchanting_table.anim.json", "srpcotesia:animations/hi_enchanting_table.animation.json",
+            "srpcotesia:animations/osmosis.anim.json", "srpcotesia:animations/osmosis.animation.json");
     private static final String LEGACY_SPEED_QUERY = "speed";
     private static final String MODERN_SPEED_QUERY = "query.ground_speed";
     private static final String LEGACY_YAW_QUERY = "yaw";
@@ -226,7 +237,7 @@ public final class SrpcotesiaApiCompat {
         if (jar.version != LegacyVersion.V1_12_2 || jar.mods.stream().map(mod -> mod.legacyId)
                 .noneMatch(id -> id != null && id.equalsIgnoreCase(MOD_ID))) return 0;
 
-        int changes = adaptCotesiaAssetReferences(resources, peers.containsKey(BIOME_BASE));
+        int changes = adaptCotesiaAssetReferences(classes, resources, peers.containsKey(BIOME_BASE));
         ClassInfo biomeBase = peers.get(BIOME_BASE);
         if (biomeBase != null) {
             if (!peers.containsKey(OLD_BIOME)) {
@@ -258,8 +269,16 @@ public final class SrpcotesiaApiCompat {
         return changes;
     }
 
-    private static int adaptCotesiaAssetReferences(Map<String, byte[]> resources, boolean currentSrpApi) {
-        int changes = 0;
+    private static int adaptCotesiaAssetReferences(Map<String, byte[]> classes, Map<String, byte[]> resources,
+            boolean currentSrpApi) {
+        int changes = adaptCotesiaAnimationPaths(classes);
+        for (Map.Entry<String, String> entry : COTESIA_ANIMATION_PATHS.entrySet()) {
+            if (!entry.getKey().startsWith("assets/")) continue;
+            byte[] animation = resources.remove(entry.getKey());
+            if (animation == null) continue;
+            resources.putIfAbsent(entry.getValue(), animation);
+            changes++;
+        }
         byte[] inactiveSaltine = resources.get(COTESIA_SALTINE_INACTIVE_TEXTURE);
         if (inactiveSaltine != null && !resources.containsKey(COTESIA_SALTINE_TEXTURE)) {
             resources.put(COTESIA_SALTINE_TEXTURE, inactiveSaltine);
@@ -297,6 +316,29 @@ public final class SrpcotesiaApiCompat {
         } catch (RuntimeException ignored) {
             return changes;
         }
+    }
+
+    /** GeckoLib 4 only discovers Cotesia animation assets with the modern suffix. */
+    private static int adaptCotesiaAnimationPaths(Map<String, byte[]> classes) {
+        int changes = 0;
+        for (Map.Entry<String, byte[]> entry : List.copyOf(classes.entrySet())) {
+            ClassNode node = readClass(entry.getValue());
+            if (node == null) continue;
+            int classChanges = 0;
+            for (MethodNode method : node.methods) {
+                for (AbstractInsnNode instruction : method.instructions) {
+                    if (!(instruction instanceof LdcInsnNode ldc) || !(ldc.cst instanceof String value)) continue;
+                    String replacement = COTESIA_ANIMATION_PATHS.get(value);
+                    if (replacement == null) continue;
+                    ldc.cst = replacement;
+                    classChanges++;
+                }
+            }
+            if (classChanges == 0) continue;
+            classes.put(entry.getKey(), writeClass(node));
+            changes += classChanges;
+        }
+        return changes;
     }
 
     private static int adaptRemainingEntityMixins(Map<String, byte[]> classes, Map<String, ClassInfo> peers,
