@@ -267,6 +267,12 @@ class SrpcotesiaApiCompatTest {
         Map<String, byte[]> resources = new LinkedHashMap<>();
         byte[] inactiveSaltine = new byte[] {1, 2, 3};
         resources.put("assets/srpcotesia/textures/blocks/saltine_inactive.png", inactiveSaltine);
+        String grepAnimation = "{\"animations\":{\"animation.grep.idle\":{\"bones\":{"
+                + "\"bone1\":{\"position\":{\"vector\":[0,\"2*math.sin(400*speed*(query.anim_time))\",0]}},"
+                + "\"face\":{\"rotation\":{\"vector\":[0,\"yaw\",\"pitch\"]}},"
+                + "\"eye\":{\"position\":{\"vector\":[0,\"eye_y\",\"eye_z\"]}}}}}}";
+        resources.put("assets/srpcotesia/animations/grep.animation.json",
+                grepAnimation.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         String model = "{\"textures\":{\"particle\":\"srparasites:blocks/parasitetrunk_tree_side\","
                 + "\"down\":\"srparasites:blocks/parasitetrunk_tree_down\",\"up\":\"srpcotesia:blocks/inf_crafting_table_up\"}}";
         resources.put("assets/srpcotesia/models/block/inf_crafting_table.json", model.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -275,8 +281,17 @@ class SrpcotesiaApiCompatTest {
         oldBiome.name = OLD_BIOME;
         peers.put(OLD_BIOME, ClassInfo.of(oldBiome));
 
-        assertEquals(2, SrpcotesiaApiCompat.apply(cotesiaJar(), new LinkedHashMap<>(), resources, peers, newRemapper()));
+        assertEquals(3, SrpcotesiaApiCompat.apply(cotesiaJar(), new LinkedHashMap<>(), resources, peers, newRemapper()));
         assertArrayEquals(inactiveSaltine, resources.get("assets/srpcotesia/textures/blocks/saltine.png"));
+        String adaptedAnimation = new String(resources.get("assets/srpcotesia/animations/grep.animation.json"),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(adaptedAnimation.contains("query.ground_speed"));
+        assertFalse(adaptedAnimation.contains("400*speed*"));
+        assertTrue(adaptedAnimation.contains("query.body_y_rotation"));
+        assertTrue(adaptedAnimation.contains("query.head_x_rotation"));
+        assertFalse(adaptedAnimation.contains("\"yaw\""));
+        assertFalse(adaptedAnimation.contains("\"pitch\""));
+        assertTrue(adaptedAnimation.contains("[0,\"0\",\"0\"]"));
         var adapted = com.google.gson.JsonParser.parseString(new String(resources.get("assets/srpcotesia/models/block/inf_crafting_table.json"),
                 java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
         assertEquals("srparasites:blocks/parasitetrunk_tree", adapted.getAsJsonObject("textures").get("down").getAsString());

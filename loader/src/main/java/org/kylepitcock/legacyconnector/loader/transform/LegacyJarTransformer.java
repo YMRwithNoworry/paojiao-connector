@@ -38,7 +38,7 @@ import org.objectweb.asm.tree.ClassNode;
  */
 public final class LegacyJarTransformer {
     /** Bump whenever the output of this class changes, to invalidate caches. */
-    public static final int TRANSFORMER_VERSION = 122;
+    public static final int TRANSFORMER_VERSION = 123;
     /** Names the legacy coremod plugin class of a translated jar. */
     public static final String COREMOD_RESOURCE = "META-INF/legacyconnector-coremod.txt";
 
@@ -207,12 +207,19 @@ public final class LegacyJarTransformer {
             "org/slf4j/", "org/apache/logging/", "io/netty/", "org/joml/", "org/apache/commons/lang3/", "org/apache/commons/io/", "org/apache/commons/codec/",
             "com/google/errorprone/", "com/google/j2objc/", "org/checkerframework/", "org/jetbrains/annotations/");
 
+    /** Libraries NeoForge's launcher supplies as platform modules. Bundled copies are dropped and must keep their host names. */
+    private static final List<String> PLATFORM_LIBRARIES = List.of("org/spongepowered/asm/", "org/spongepowered/tools/",
+            "com/llamalad7/mixinextras/",
+            // the client ships JOrbis/JOgg (sound); mods that bundle them for their own sound code (MTS) would split the package
+            "com/jcraft/jorbis/", "com/jcraft/jogg/");
+
     /**
      * A class of a library the game ships (commons-lang3, Guava, Netty...): dropped from every legacy jar and served by the game's copy, so
      * it is never relocated either (a relocated reference would point at a copy no jar has any more).
      */
     public static boolean isProvidedLibrary(String internalName) {
-        return PROVIDED_LIBRARIES.stream().anyMatch(internalName::startsWith) && !isOptionalNativeClass(internalName);
+        return (PROVIDED_LIBRARIES.stream().anyMatch(internalName::startsWith) || PLATFORM_LIBRARIES.stream().anyMatch(internalName::startsWith))
+                && !isOptionalNativeClass(internalName);
     }
 
     /**
@@ -669,12 +676,6 @@ public final class LegacyJarTransformer {
         }
         return sb.toString();
     }
-
-    /** Libraries the platform ships as modules: a bundled copy would split their packages and JPMS refuses to boot. */
-    private static final List<String> PLATFORM_LIBRARIES = List.of("org/spongepowered/asm/", "org/spongepowered/tools/",
-            "com/llamalad7/mixinextras/",
-            // the client ships JOrbis/JOgg (sound); mods that bundle them for their own sound code (MTS) would split the package
-            "com/jcraft/jorbis/", "com/jcraft/jogg/");
 
     /**
      * Drops bundled copies of {@link #PLATFORM_LIBRARIES} (1.12.2 mods shaded Mixin for their own mixins, which target 1.12

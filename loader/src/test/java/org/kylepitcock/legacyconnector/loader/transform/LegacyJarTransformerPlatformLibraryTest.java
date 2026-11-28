@@ -33,4 +33,10 @@ class LegacyJarTransformerPlatformLibraryTest {
         assertTrue(resources.containsKey("META-INF/services/example.ModService"));
         assertTrue(resources.containsKey("mixins.srparasites.json"));
     }
+
+    @Test
+    void platformLibrariesAreKeptOutOfCrossVersionRelocation() {
+        assertTrue(LegacyJarTransformer.isProvidedLibrary("com/llamalad7/mixinextras/injector/wrapoperation/Operation"));
+        assertTrue(LegacyJarTransformer.isProvidedLibrary("org/spongepowered/asm/mixin/Mixin"));
+    }
 }

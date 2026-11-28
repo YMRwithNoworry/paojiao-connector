@@ -49,6 +49,16 @@ public final class SrpcotesiaApiCompat {
     private static final String COTESIA_SALTINE_TEXTURE = "assets/srpcotesia/textures/blocks/saltine.png";
     private static final String COTESIA_SALTINE_INACTIVE_TEXTURE = "assets/srpcotesia/textures/blocks/saltine_inactive.png";
     private static final String COTESIA_INF_CRAFTING_TABLE_MODEL = "assets/srpcotesia/models/block/inf_crafting_table.json";
+    private static final String COTESIA_GREP_ANIMATION = "assets/srpcotesia/animations/grep.animation.json";
+    private static final String LEGACY_SPEED_QUERY = "speed";
+    private static final String MODERN_SPEED_QUERY = "query.ground_speed";
+    private static final String LEGACY_YAW_QUERY = "yaw";
+    private static final String MODERN_YAW_QUERY = "query.body_y_rotation";
+    private static final String LEGACY_PITCH_QUERY = "pitch";
+    private static final String MODERN_PITCH_QUERY = "query.head_x_rotation";
+    private static final String LEGACY_EYE_Y_QUERY = "eye_y";
+    private static final String LEGACY_EYE_Z_QUERY = "eye_z";
+    private static final String MODERN_ZERO_QUERY = "0";
     private static final String SRP_TREE_DOWN_TEXTURE = "assets/srparasites/textures/blocks/parasitetrunk_tree_down.png";
     private static final String SRP_TREE_END_TEXTURE = "srparasites:blocks/parasitetrunk_tree";
     private static final String SRP_BLOCKS = "com/dhanantry/scapeandrunparasites/init/SRPBlocks";
@@ -254,6 +264,22 @@ public final class SrpcotesiaApiCompat {
         if (inactiveSaltine != null && !resources.containsKey(COTESIA_SALTINE_TEXTURE)) {
             resources.put(COTESIA_SALTINE_TEXTURE, inactiveSaltine);
             changes++;
+        }
+
+        byte[] grepAnimation = resources.get(COTESIA_GREP_ANIMATION);
+        if (grepAnimation != null) {
+            String source = new String(grepAnimation, StandardCharsets.UTF_8);
+            String adapted = source
+                    .replaceAll("(?<![A-Za-z0-9_])" + LEGACY_SPEED_QUERY + "(?![A-Za-z0-9_])", MODERN_SPEED_QUERY)
+                    .replaceAll("(?<![A-Za-z0-9_])" + LEGACY_YAW_QUERY + "(?![A-Za-z0-9_])", MODERN_YAW_QUERY)
+                    .replaceAll("(?<![A-Za-z0-9_])" + LEGACY_PITCH_QUERY + "(?![A-Za-z0-9_])", MODERN_PITCH_QUERY)
+                    // ModelGrep explicitly sets both legacy eye offsets to zero every frame.
+                    .replaceAll("(?<![A-Za-z0-9_])" + LEGACY_EYE_Y_QUERY + "(?![A-Za-z0-9_])", MODERN_ZERO_QUERY)
+                    .replaceAll("(?<![A-Za-z0-9_])" + LEGACY_EYE_Z_QUERY + "(?![A-Za-z0-9_])", MODERN_ZERO_QUERY);
+            if (!adapted.equals(source)) {
+                resources.put(COTESIA_GREP_ANIMATION, adapted.getBytes(StandardCharsets.UTF_8));
+                changes++;
+            }
         }
 
         byte[] modelBytes = resources.get(COTESIA_INF_CRAFTING_TABLE_MODEL);

@@ -34,6 +34,7 @@ import org.kylepitcock.legacyconnector.loader.resource.DataConverter1201;
 import org.kylepitcock.legacyconnector.loader.resource.FunctionConverter1201;
 import org.kylepitcock.legacyconnector.loader.transform.compat.SuperbWarfareArmor1201;
 import org.kylepitcock.legacyconnector.loader.transform.compat.TaczArcana1201;
+import org.kylepitcock.legacyconnector.loader.transform.compat.ModernMayhem1201;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
@@ -322,8 +323,10 @@ public final class Forge1201Transformer {
         int palladiumCoreLightningMixinChanges = 0;
         int registeredArmorChanges = 0;
         int taczArcanaCompatibilityChanges = 0;
+        int modernMayhemCompatibilityChanges = 0;
         boolean adaptRegisteredArmor = SuperbWarfareArmor1201.accepts(ownIds, frameDependencies.keySet());
         boolean adaptArcana = TaczArcana1201.accepts(ownIds);
+        boolean adaptModernMayhem = ModernMayhem1201.accepts(ownIds);
         for (ClassNode node : nodes) {
             if (PalladiumKubeJS1201.dropLegacyKubejsClass(node.name)) {
                 palladiumKubejsClassesDropped++;
@@ -335,6 +338,8 @@ public final class Forge1201Transformer {
             }
             int taczArcanaChange = adaptArcana ? TaczArcana1201.apply(node) : 0;
             taczArcanaCompatibilityChanges += taczArcanaChange;
+            int modernMayhemChange = adaptModernMayhem ? ModernMayhem1201.apply(node) : 0;
+            modernMayhemCompatibilityChanges += modernMayhemChange;
             stringsMapped += mapSrgStrings(node);
             int viaCalls = CallRewrites1201.apply(node, compoundSubclasses);
             int palladiumGeckoAnimationChange = PalladiumGeckoRenderLayer1201.apply(node);
@@ -410,11 +415,15 @@ public final class Forge1201Transformer {
                     + palladiumPlayerSkinFetcherChange + palladiumCommandFunctionChange
                     + palladiumFlightHandlerChange + palladiumCustomProjectileChange
                     + palladiumCoreOverlayChange + palladiumCoreLightningMixinChange + registeredArmorChange + settingsCallbacks
-                    + taczArcanaChange
+                    + taczArcanaChange + modernMayhemChange
                     + mixinStats.adapters - previousMixinAdapters);
         }
         if (taczArcanaCompatibilityChanges > 0) {
             result.notes.add("TaCZ Arcana compatibility: native startup configuration, Camera.move, bullet spawn-data, HUD render, SimpleBedrockModel first-person, and connection protocol bridges");
+        }
+        if (modernMayhemCompatibilityChanges > 0) {
+            result.notes.add("Modern Mayhem goggles: merged duplicate Forge client-extension registrations and preserved the GeckoLib item renderer: "
+                    + modernMayhemCompatibilityChanges + " class/method adaptation(s)");
         }
         if (registeredArmorChanges > 0) {
             result.notes.add("Legacy armor material constants adapted to native registered holders: " + registeredArmorChanges + " reads");
